@@ -180,7 +180,7 @@ def update_ticket(
             ticket_id=ticket.id,
             author_id=current_user.id,
             content=f"Status changed from {ticket.status.value} to {ticket_in.status.value}",
-            type=models.MessageType.status_change
+            type=models.MessageType.status_update
         )
         db.add(system_msg)
         ticket.status = ticket_in.status
@@ -190,7 +190,7 @@ def update_ticket(
             ticket_id=ticket.id,
             author_id=current_user.id,
             content=f"Priority changed from {ticket.priority.value} to {ticket_in.priority.value}",
-            type=models.MessageType.status_change
+            type=models.MessageType.status_update
         )
         db.add(system_msg)
         ticket.priority = ticket_in.priority
@@ -202,7 +202,7 @@ def update_ticket(
                 ticket_id=ticket.id,
                 author_id=current_user.id,
                 content=f"Assigned ticket to {assignee.name}",
-                type=models.MessageType.status_change
+                type=models.MessageType.status_update
             )
             db.add(system_msg)
             ticket.assigned_to_id = assignee.id
@@ -219,7 +219,7 @@ def update_ticket(
                     ticket_id=ticket.id,
                     author_id=current_user.id,
                     content=f"Escalated ticket to room: {room.name}",
-                    type=models.MessageType.status_change
+                    type=models.MessageType.status_update
                 )
                 db.add(system_msg)
 

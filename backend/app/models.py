@@ -63,6 +63,10 @@ class Employee(Base):
     messages = relationship("Message", back_populates="author")
     notifications = relationship("Notification", back_populates="user")
 
+    @property
+    def room_ids(self):
+        return [m.room_id for m in self.room_memberships]
+
 class RoomMember(Base):
     __tablename__ = "room_members"
     

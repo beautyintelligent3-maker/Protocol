@@ -10,6 +10,7 @@ class UserOut(BaseModel):
     name: str
     email: str
     role: str
+    room_ids: List[UUID] = []
     
     model_config = ConfigDict(from_attributes=True)
 

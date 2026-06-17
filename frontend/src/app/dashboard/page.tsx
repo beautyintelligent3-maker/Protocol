@@ -248,9 +248,11 @@ function DashboardContent() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned" disabled>Unassigned</SelectItem>
-                        {allUsers?.map((u: any) => (
+                        {allUsers?.filter((u: any) => 
+                          selectedTicket.rooms?.some((r: any) => u.room_ids?.includes(r.id))
+                        ).map((u: any) => (
                           <SelectItem key={u.id} value={u.id} className="text-xs">
-                            {u.name}
+                            {u.name} ({u.role})
                           </SelectItem>
                         ))}
                       </SelectContent>

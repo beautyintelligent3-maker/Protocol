@@ -240,14 +240,14 @@ function DashboardContent() {
                     <p className="text-xs font-semibold text-zinc-500 uppercase mb-1">Assignee</p>
                     <Select 
                       value={selectedTicket.assignee?.id || "unassigned"} 
-                      onValueChange={(val) => updateTicketMutation.mutate({ assigned_to_id: val })}
+                      onValueChange={(val) => updateTicketMutation.mutate({ assigned_to_id: val === "unassigned" ? null : val })}
                       disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
                     >
                       <SelectTrigger className="h-8 text-xs w-[180px]">
                         <SelectValue placeholder="Unassigned" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unassigned" disabled>Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {allUsers?.filter((u: any) => 
                           selectedTicket.rooms?.some((r: any) => u.room_ids?.includes(r.id))
                         ).map((u: any) => (
@@ -260,18 +260,20 @@ function DashboardContent() {
                   </div>
 
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-zinc-500 uppercase mb-1">Escalate to Room</p>
+                    <p className="text-xs font-semibold text-zinc-500 uppercase mb-1">Escalate to Department</p>
                     <Select 
                       value="placeholder"
                       onValueChange={(val) => updateTicketMutation.mutate({ add_room_id: val })}
                       disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
                     >
                       <SelectTrigger className="h-8 text-xs w-[180px]">
-                        <SelectValue placeholder="Add Room..." />
+                        <SelectValue placeholder="Escalate..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="placeholder" disabled>Add Room...</SelectItem>
-                        {allRooms?.filter((r: any) => !selectedTicket.rooms?.some((tr: any) => tr.id === r.id)).map((r: any) => (
+                        <SelectItem value="placeholder" disabled>Escalate...</SelectItem>
+                        {allRooms?.filter((r: any) => 
+                          r.type !== 'branch' && !selectedTicket.rooms?.some((tr: any) => tr.id === r.id)
+                        ).map((r: any) => (
                           <SelectItem key={r.id} value={r.id} className="text-xs">
                             {r.name}
                           </SelectItem>

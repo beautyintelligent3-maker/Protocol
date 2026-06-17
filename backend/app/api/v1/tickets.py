@@ -131,10 +131,13 @@ def post_message(
         raise HTTPException(status_code=404, detail="Ticket not found")
 
     # Security check
-    ticket_room_ids = [tr.room_id for tr in ticket.room_links]
-    user_room_ids = [m.room_id for m in current_user.room_memberships]
-    if not any(r_id in user_room_ids for r_id in ticket_room_ids):
-        raise HTTPException(status_code=403, detail="Not authorized to comment on this ticket")
+    if current_user.role != "owner":
+        if current_user.role in ["manager", "hr", "it_team"]:
+            if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Not authorized to comment on this ticket")
+        else:
+            if ticket.assigned_to_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Not authorized to comment on this ticket")
 
     message = models.Message(
         ticket_id=ticket_id,
@@ -163,10 +166,13 @@ def update_ticket(
         raise HTTPException(status_code=404, detail="Ticket not found")
 
     # Security check
-    ticket_room_ids = [tr.room_id for tr in ticket.room_links]
-    user_room_ids = [m.room_id for m in current_user.room_memberships]
-    if not any(r_id in user_room_ids for r_id in ticket_room_ids):
-        raise HTTPException(status_code=403, detail="Not authorized to modify this ticket")
+    if current_user.role != "owner":
+        if current_user.role in ["manager", "hr", "it_team"]:
+            if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Not authorized to modify this ticket")
+        else:
+            if ticket.assigned_to_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Not authorized to modify this ticket")
 
     # Update logic and system message generation
     if ticket_in.status is not None and ticket_in.status != ticket.status:

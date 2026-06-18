@@ -7,10 +7,13 @@ from .models import RoomType, TicketStatus, TicketPriority, MessageType, Approva
 # --- Auth / User Schemas ---
 class UserOut(BaseModel):
     id: UUID
+    staff_id: Optional[str] = None
     name: str
     email: str
     role: str
     room_ids: List[UUID] = []
+    has_penalty: bool = False
+    penalty_reasons: List[str] = []
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -21,11 +24,18 @@ class UserCreate(BaseModel):
     role: str
     room_id: UUID
 
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    password: Optional[str] = None
+    room_id: Optional[UUID] = None
+
 # --- Room Schemas ---
 class RoomOut(BaseModel):
     id: UUID
     name: str
-    type: RoomType
+    description: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,6 +61,7 @@ class TicketCreate(BaseModel):
     description: str
     room_ids: List[UUID]
     priority: TicketPriority = TicketPriority.medium
+    due_date: Optional[datetime] = None
 
 class TicketUpdate(BaseModel):
     status: Optional[TicketStatus] = None
@@ -67,6 +78,7 @@ class TicketOut(BaseModel):
     approval_status: ApprovalStatus
     created_at: datetime
     updated_at: datetime
+    due_date: Optional[datetime] = None
     creator: UserOut
     assignee: Optional[UserOut] = None
     rooms: List[RoomOut] = []

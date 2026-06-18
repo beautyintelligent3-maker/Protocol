@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { createUser, fetchAllRooms, fetchAllUsers } from "@/lib/api";
+import { createUser, updateUser, deleteUser, fetchAllRooms, fetchAllUsers } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, CheckCircle2, Loader2, UserPlus, ShieldAlert } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, UserPlus, ShieldAlert, Edit2, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function StaffManagementPage() {
@@ -34,6 +34,36 @@ export default function StaffManagementPage() {
     queryFn: fetchAllRooms
   });
 
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({ name: "", email: "", password: "", role: "", room_id: "" });
+  const currentUserRole = "owner"; // Assumed owner role for this restricted page
+
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => updateUser(data.id, data.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setEditingUser(null);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    }
+  });
+
+  const handleEditClick = (user: any) => {
+    setEditFormData({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role,
+      room_id: ""
+    });
+    setEditingUser(user);
+  };
+
   const createMutation = useMutation({
     mutationFn: createUser,
     onSuccess: () => {
@@ -55,9 +85,10 @@ export default function StaffManagementPage() {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-slate-50 p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
+    <>
+      <div className="flex-1 overflow-auto bg-slate-50 p-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
             <UserPlus className="h-8 w-8 text-indigo-500" />
             Staff Management
@@ -157,15 +188,44 @@ export default function StaffManagementPage() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {users?.map((user: any) => (
-                    <div key={user.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+                    <div key={user.id} className={`p-4 rounded-xl border ${user.has_penalty ? 'border-red-200 bg-red-50/50 hover:bg-red-50' : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'} flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-3 transition-colors`}>
                       <div className="flex flex-col min-w-0">
-                        <p className="font-semibold text-slate-900 truncate">{user.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-slate-900 truncate">{user.name}</p>
+                          {user.staff_id && (
+                            <span className="text-[10px] bg-indigo-100 text-indigo-700 font-mono px-1.5 py-0.5 rounded">ID: {user.staff_id}</span>
+                          )}
+                          {user.has_penalty && (
+                            <span className="text-[10px] bg-red-500 text-white font-bold px-1.5 py-0.5 rounded flex items-center gap-1 uppercase tracking-wider">
+                              <AlertCircle className="w-3 h-3" /> Penalty
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-slate-500 truncate">{user.email}</p>
+                        {user.has_penalty && user.penalty_reasons?.length > 0 && (
+                          <div className="mt-2 flex flex-col gap-1">
+                            {user.penalty_reasons.map((reason: string, i: number) => (
+                              <p key={i} className="text-[11px] font-medium text-red-600 flex items-center gap-1">
+                                • {reason}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-shrink-0">
+                      <div className="flex items-center gap-3 flex-shrink-0">
                         <span className="bg-white px-3 py-1 rounded-md text-xs font-medium capitalize text-slate-600 border border-slate-200 shadow-sm inline-block">
                           {user.role.replace('_', ' ')}
                         </span>
+                        {currentUserRole === "owner" && (
+                          <div className="flex gap-1 border-l border-slate-200 pl-3">
+                            <button onClick={() => handleEditClick(user)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" title="Edit User">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => { if(confirm("Are you sure you want to delete this user? This cannot be undone.")) { deleteMutation.mutate(user.id) } }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Delete User">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -176,5 +236,75 @@ export default function StaffManagementPage() {
         </div>
       </div>
     </div>
+      
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-semibold text-slate-900">Edit Staff Account</h3>
+              <button onClick={() => setEditingUser(null)}><X className="w-5 h-5 text-slate-400 hover:text-slate-600" /></button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">Full Name</label>
+                  <Input value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="bg-slate-50" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">Email Address</label>
+                  <Input type="email" value={editFormData.email} onChange={(e) => setEditFormData({...editFormData, email: e.target.value})} className="bg-slate-50" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">New Password (leave blank to keep current)</label>
+                  <Input type="text" placeholder="New password" value={editFormData.password} onChange={(e) => setEditFormData({...editFormData, password: e.target.value})} className="bg-slate-50" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">Role</label>
+                  <Select value={editFormData.role} onValueChange={(val) => setEditFormData({...editFormData, role: val || ""})}>
+                    <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Select role" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="therapist">Therapist</SelectItem>
+                      <SelectItem value="manager">Branch Manager</SelectItem>
+                      <SelectItem value="hr">HR</SelectItem>
+                      <SelectItem value="it_team">IT Support</SelectItem>
+                      <SelectItem value="executive">Executive</SelectItem>
+                      <SelectItem value="cleaner">Cleaner</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">Assign to Branch</label>
+                  <Select value={editFormData.room_id} onValueChange={(val) => setEditFormData({...editFormData, room_id: val || ""})}>
+                    <SelectTrigger className="bg-slate-50"><SelectValue placeholder="Select branch" /></SelectTrigger>
+                    <SelectContent>
+                      {rooms?.map((r: any) => (
+                        <SelectItem key={r.id} value={r.id}>{r.name} ({r.type})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button 
+                  className="w-full mt-4 bg-indigo-500 hover:bg-indigo-600 text-white" 
+                  disabled={updateMutation.isPending}
+                  onClick={() => {
+                    const payload: any = {};
+                    if(editFormData.name) payload.name = editFormData.name;
+                    if(editFormData.email) payload.email = editFormData.email;
+                    if(editFormData.password) payload.password = editFormData.password;
+                    if(editFormData.role) payload.role = editFormData.role;
+                    if(editFormData.room_id) payload.room_id = editFormData.room_id;
+                    updateMutation.mutate({ id: editingUser.id, payload });
+                  }}
+                >
+                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

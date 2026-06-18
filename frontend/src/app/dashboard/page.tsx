@@ -4,13 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchTickets, fetchTicketDetails, postMessage, updateTicket, fetchAllUsers, fetchAllRooms, approveTicket } from "@/lib/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
-import { Loader2, Ticket, MessageSquare, Send, CheckCircle2, AlertCircle, ArrowLeft, Paperclip, Download, X } from "lucide-react";
+import { Loader2, Ticket, MessageSquare, Send, CheckCircle2, AlertCircle, ArrowLeft, Paperclip, Download, X, Search, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CreateTicketDialog } from "@/components/CreateTicketDialog";
+import { Input } from "@/components/ui/input";
 
 function DashboardContent() {
   const searchParams = useSearchParams();
@@ -19,22 +20,29 @@ function DashboardContent() {
   const roomId = searchParams.get("room_id");
   const ticketId = searchParams.get("ticket_id");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
+  const [filterStaffId, setFilterStaffId] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"active" | "resolved">("active");
   const [comment, setComment] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
 
   const { data: fetchedTickets, isLoading, error } = useQuery({
-    queryKey: ["tickets", roomId],
-    queryFn: () => fetchTickets(roomId || undefined),
+    queryKey: ["tickets", roomId, filterStaffId],
+    queryFn: () => fetchTickets({
+      room_id: roomId || undefined,
+      assignee_staff_id: filterStaffId || undefined,
+    }),
     enabled: true,
   });
 
-  const tickets = fetchedTickets ? [...fetchedTickets].sort((a, b) => {
-    if (sortBy === "newest") {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    }
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-  }) : [];
+  const tickets = fetchedTickets ? [...fetchedTickets]
+    .filter((t: any) => filterStatus === "resolved" ? t.status === "resolved" : t.status !== "resolved")
+    .sort((a, b) => {
+      if (sortBy === "newest") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }) : [];
 
   const { data: selectedTicket, isLoading: isTicketLoading } = useQuery({
     queryKey: ["ticket", ticketId],
@@ -124,6 +132,32 @@ function DashboardContent() {
           {["owner", "manager", "hr", "it_team"].includes(currentUserRole) && (
             <CreateTicketDialog roomId={roomId} />
           )}
+        </div>
+
+        <div className="p-4 border-b border-slate-200 space-y-3 bg-slate-50">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input 
+              placeholder="Search by Staff ID (e.g. 0005)" 
+              value={filterStaffId} 
+              onChange={(e) => setFilterStaffId(e.target.value)}
+              className="pl-9 bg-white"
+            />
+          </div>
+          <div className="flex bg-slate-200/50 p-1 rounded-lg">
+            <button 
+              onClick={() => setFilterStatus("active")}
+              className={`flex-1 text-sm py-1.5 font-medium rounded-md transition-colors ${filterStatus === "active" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Active
+            </button>
+            <button 
+              onClick={() => setFilterStatus("resolved")}
+              className={`flex-1 text-sm py-1.5 font-medium rounded-md transition-colors ${filterStatus === "resolved" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Resolved
+            </button>
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto">
@@ -220,6 +254,13 @@ function DashboardContent() {
                     <span className={`text-sm font-medium uppercase flex items-center gap-1 ${getPriorityColor(selectedTicket.priority)}`}>
                       Priority: {selectedTicket.priority}
                     </span>
+                    {selectedTicket.due_date && (
+                      <span className={`text-sm font-medium flex items-center gap-1 ${new Date(selectedTicket.due_date) < new Date() && selectedTicket.status !== "resolved" ? "text-red-600 animate-pulse" : "text-slate-500"}`}>
+                        <Calendar className="w-4 h-4" />
+                        Due: {new Date(selectedTicket.due_date).toLocaleString()}
+                        {new Date(selectedTicket.due_date) < new Date() && selectedTicket.status !== "resolved" && " (OVERDUE)"}
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {selectedTicket.approval_status === "pending" && currentUserRole === "owner" && (
@@ -256,22 +297,37 @@ function DashboardContent() {
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Assignee</p>
                     <Select 
-                      value={selectedTicket.assignee?.id || "unassigned"} 
+                      value={selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null) || "unassigned"} 
                       onValueChange={(val) => updateTicketMutation.mutate({ assigned_to_id: val === "unassigned" ? null : val })}
                       disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
                     >
                       <SelectTrigger className="h-8 text-xs w-full md:w-[180px]">
-                        <SelectValue placeholder="Unassigned" />
+                        <div className="truncate">
+                          {(() => {
+                            const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
+                            const foundUser = allUsers?.find((u: any) => u.id === assigneeId);
+                            if (foundUser) {
+                              return `${foundUser.staff_id ? `[${foundUser.staff_id}] ` : ""}${foundUser.name}`;
+                            }
+                            if (selectedTicket.assignee && typeof selectedTicket.assignee === 'object') {
+                              return `${selectedTicket.assignee.staff_id ? `[${selectedTicket.assignee.staff_id}] ` : ""}${selectedTicket.assignee.name}`;
+                            }
+                            return "Unassigned";
+                          })()}
+                        </div>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {allUsers?.filter((u: any) => 
-                          selectedTicket.rooms?.some((r: any) => u.room_ids?.includes(r.id))
-                        ).map((u: any) => (
-                          <SelectItem key={u.id} value={u.id} className="text-xs">
-                            {u.name} ({u.role})
-                          </SelectItem>
-                        ))}
+                        {(() => {
+                          const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
+                          return allUsers?.filter((u: any) => 
+                            selectedTicket.rooms?.some((r: any) => u.room_ids?.includes(r.id)) || u.id === assigneeId
+                          ).map((u: any) => (
+                            <SelectItem key={u.id} value={u.id} className="text-xs">
+                              {u.staff_id ? `[${u.staff_id}] ` : ""}{u.name} ({u.role.replace('_', ' ')})
+                            </SelectItem>
+                          ));
+                        })()}
                       </SelectContent>
                     </Select>
                   </div>

@@ -39,11 +39,14 @@ export async function fetchRooms() {
   return fetchApi("/tickets/rooms");
 }
 
-export async function fetchTickets(roomId?: string) {
-  const url = roomId 
-    ? `/tickets?room_id=${roomId}` 
-    : `/tickets`;
-  return fetchApi(url);
+export async function fetchTickets(params?: { room_id?: string, assignee_staff_id?: string, status?: string }) {
+  const query = new URLSearchParams();
+  if (params?.room_id) query.append("room_id", params.room_id);
+  if (params?.assignee_staff_id) query.append("assignee_staff_id", params.assignee_staff_id);
+  if (params?.status) query.append("status", params.status);
+  
+  const queryString = query.toString();
+  return fetchApi(`/tickets${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function fetchTicketDetails(ticketId: string) {
@@ -111,4 +114,17 @@ export async function markNotificationRead(id: string) {
 
 export async function fetchAllRooms() {
   return fetchApi(`/rooms/all`);
+}
+
+export async function updateUser(userId: string, userData: any) {
+  return fetchApi(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(userData),
+  });
+}
+
+export async function deleteUser(userId: string) {
+  return fetchApi(`/users/${userId}`, {
+    method: "DELETE",
+  });
 }

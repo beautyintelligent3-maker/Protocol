@@ -22,6 +22,8 @@ def get_my_rooms(
 @router.get("", response_model=List[schemas.TicketOut])
 def get_tickets(
     room_id: UUID = None,
+    assignee_staff_id: str = None,
+    status: str = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -50,6 +52,17 @@ def get_tickets(
 
     if room_id:
         query = query.join(models.TicketRoom).filter(models.TicketRoom.room_id == room_id)
+
+    if assignee_staff_id:
+        # Join assignee to filter by their staff_id tag
+        query = query.join(models.Employee, models.Ticket.assigned_to_id == models.Employee.id).filter(models.Employee.staff_id == assignee_staff_id)
+        
+    if status:
+        try:
+            status_enum = models.TicketStatus[status]
+            query = query.filter(models.Ticket.status == status_enum)
+        except KeyError:
+            pass
 
     tickets = query.offset(skip).limit(limit).all()
     return tickets

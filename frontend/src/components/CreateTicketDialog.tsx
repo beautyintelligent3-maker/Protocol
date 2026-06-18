@@ -16,6 +16,7 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("low");
+  const [dueDate, setDueDate] = useState("");
   const queryClient = useQueryClient();
 
   const createTicketMutation = useMutation({
@@ -28,6 +29,7 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
       setTitle("");
       setDescription("");
       setPriority("low");
+      setDueDate("");
     },
   });
 
@@ -38,6 +40,7 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
       description,
       priority,
       room_ids: roomId ? [roomId] : [],
+      ...(dueDate && { due_date: new Date(dueDate).toISOString() })
     });
   };
 
@@ -83,6 +86,16 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
                 <SelectItem value="high">High</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="due_date">Deadline (Optional)</Label>
+            <Input
+              id="due_date"
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full"
+            />
           </div>
           <div className="pt-4 flex justify-end">
             <Button

@@ -14,6 +14,13 @@ class UserOut(BaseModel):
     
     model_config = ConfigDict(from_attributes=True)
 
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str
+    room_id: UUID
+
 # --- Room Schemas ---
 class RoomOut(BaseModel):
     id: UUID
@@ -31,6 +38,8 @@ class MessageOut(BaseModel):
     id: UUID
     content: str
     type: MessageType
+    attachment_name: Optional[str] = None
+    attachment_type: Optional[str] = None
     created_at: datetime
     author: UserOut
     

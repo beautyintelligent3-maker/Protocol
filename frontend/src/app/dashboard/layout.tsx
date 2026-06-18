@@ -1,32 +1,56 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchRooms, fetchAllUsers, fetchNotifications, markNotificationRead } from "@/lib/api";
+import { fetchRooms, fetchCurrentUser, fetchNotifications, markNotificationRead } from "@/lib/api";
 import Link from "next/link";
-import { LayoutDashboard, Users, User, Loader2, Bell, CheckCircle2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { LayoutDashboard, Users, User, Loader2, Bell, CheckCircle2, UserPlus, LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  
+  // Protect route
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push("/login");
+      }
+    });
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        router.push("/login");
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [router]);
+
+  const { data: currentUser, isLoading: loadingUser } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: fetchCurrentUser,
+    retry: false,
+  });
+
   const { data: rooms, isLoading, error } = useQuery({
     queryKey: ["rooms"],
     queryFn: fetchRooms,
-  });
-
-  const { data: allUsers } = useQuery({
-    queryKey: ["allUsers"],
-    queryFn: fetchAllUsers,
+    enabled: !!currentUser,
   });
 
   const queryClient = useQueryClient();
   const { data: notifications } = useQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
-    refetchInterval: 10000, // Poll every 10s for new notifications
+    refetchInterval: 10000,
+    enabled: !!currentUser,
   });
 
   const unreadCount = notifications?.filter((n: any) => !n.is_read).length || 0;
@@ -36,83 +60,83 @@ export default function DashboardLayout({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  const [currentUser, setCurrentUser] = useState("alice@example.com");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [mobileRoomsOpen, setMobileRoomsOpen] = useState(false);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("mock_user");
-      if (stored) setCurrentUser(stored);
-    }
-  }, []);
-
-  const handleUserChange = (email: string) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("mock_user", email);
-      window.location.reload(); // Refresh to re-fetch rooms and tickets for new user
-    }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
   };
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col">
-        <div className="h-16 flex items-center justify-between px-6 border-b border-zinc-200 dark:border-zinc-800 relative">
-          <h1 className="text-lg font-bold flex items-center gap-2">
-            <LayoutDashboard className="w-5 h-5" />
-            Ticketing System
-          </h1>
-          
-          {/* Notification Bell */}
-          <div className="relative">
-            <button 
-              className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors relative"
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
-              <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900" />
-              )}
-            </button>
-            
-            {showNotifications && (
-              <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-50 overflow-hidden">
-                <div className="p-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 font-semibold text-sm">
-                  Notifications
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {notifications?.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-zinc-500">No notifications</div>
-                  ) : (
-                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                      {notifications?.map((notif: any) => (
-                        <div key={notif.id} className={`p-3 text-sm flex gap-3 ${notif.is_read ? 'opacity-60' : 'bg-blue-50/50 dark:bg-zinc-800/50'}`}>
-                          <div className="flex-1">
-                            <p className="text-zinc-800 dark:text-zinc-200">{notif.message}</p>
-                            <p className="text-xs text-zinc-400 mt-1">{new Date(notif.created_at).toLocaleString()}</p>
-                          </div>
-                          {!notif.is_read && (
-                            <button 
-                              onClick={() => markReadMutation.mutate(notif.id)}
-                              className="text-emerald-500 hover:text-emerald-600 transition-colors self-start mt-1"
-                              title="Mark as read"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+  if (loadingUser) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-slate-400" /></div>;
+  }
+
+  const NotificationBell = () => (
+    <div className="relative">
+      <button 
+        className="p-2 rounded-full hover:bg-slate-100 transition-colors relative"
+        onClick={() => setShowNotifications(!showNotifications)}
+      >
+        <Bell className="w-5 h-5 text-slate-600" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+        )}
+      </button>
+      
+      {/* Desktop Notification Popup (Hidden on Mobile) */}
+      {showNotifications && (
+        <div className="hidden md:block absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
+          <div className="p-3 border-b border-slate-200 bg-slate-50 font-semibold text-sm">
+            Notifications
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {notifications?.length === 0 ? (
+              <div className="p-4 text-center text-sm text-zinc-500">No notifications</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {notifications?.map((notif: any) => (
+                  <div key={notif.id} className={`p-3 text-sm flex gap-3 ${notif.is_read ? 'opacity-60' : 'bg-indigo-50/50'}`}>
+                    <div className="flex-1">
+                      <p className="text-slate-800">{notif.message}</p>
+                      <p className="text-xs text-slate-400 mt-1">{new Date(notif.created_at).toLocaleString()}</p>
                     </div>
-                  )}
-                </div>
+                    {!notif.is_read && (
+                      <button 
+                        onClick={() => markReadMutation.mutate(notif.id)}
+                        className="text-emerald-500 hover:text-emerald-600 transition-colors self-start mt-1"
+                        title="Mark as read"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex h-[100dvh] overflow-hidden bg-slate-50 text-slate-900 relative">
+      
+      {/* Desktop Sidebar (Hidden on Mobile) */}
+      <aside className="hidden md:flex inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex-col flex-shrink-0">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 relative">
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <LayoutDashboard className="w-5 h-5" />
+            ClinicOS
+          </h1>
+          <NotificationBell />
+        </div>
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-3">
-            <h2 className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 mt-4">
+            <h2 className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 mt-2">
               Your Rooms
             </h2>
             
@@ -130,7 +154,7 @@ export default function DashboardLayout({
               <Link
                 key={room.id}
                 href={`/dashboard?room_id=${room.id}`}
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 transition-colors"
               >
                 {room.type === "branch" ? (
                   <Users className="w-4 h-4 text-blue-500" />
@@ -142,30 +166,162 @@ export default function DashboardLayout({
                 {room.name}
               </Link>
             ))}
+
+            {currentUser?.role === "owner" && (
+              <>
+                <div className="my-4 border-t border-slate-200"></div>
+                <h2 className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Administration
+                </h2>
+                <Link
+                  href="/dashboard/staff"
+                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 transition-colors text-indigo-600"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Staff Management
+                </Link>
+              </>
+            )}
           </nav>
         </div>
 
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Switch User (Test)</h2>
-          <Select value={currentUser} onValueChange={handleUserChange}>
-            <SelectTrigger className="w-full h-8 text-xs bg-white dark:bg-zinc-950">
-              <SelectValue placeholder="Select user" />
-            </SelectTrigger>
-            <SelectContent>
-              {allUsers?.map((u: any) => (
-                <SelectItem key={u.id} value={u.email} className="text-xs">
-                  {u.name} ({u.role})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-slate-800">{currentUser?.name}</span>
+            <span className="text-xs text-slate-500 capitalize">{currentUser?.role.replace('_', ' ')}</span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-slate-500 hover:text-slate-900 hover:bg-slate-200">
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {children}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden pb-[60px] md:pb-0">
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {children}
+        </div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar (Hidden on Desktop) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white border-t border-slate-200 flex items-center justify-around z-50 px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+        <Link href="/dashboard" className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600">
+          <LayoutDashboard className="w-5 h-5 mb-1" />
+          <span className="text-[10px] font-medium">Tickets</span>
+        </Link>
+        
+        <button onClick={() => { setMobileRoomsOpen(!mobileRoomsOpen); setMobileProfileOpen(false); setShowNotifications(false); }} className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600">
+          <Users className="w-5 h-5 mb-1" />
+          <span className="text-[10px] font-medium">Rooms</span>
+        </button>
+
+        <div className="flex flex-col items-center justify-center w-16 h-full text-slate-500">
+          <NotificationBell />
+        </div>
+
+        <button onClick={() => { setMobileProfileOpen(!mobileProfileOpen); setMobileRoomsOpen(false); setShowNotifications(false); }} className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600">
+          <User className="w-5 h-5 mb-1" />
+          <span className="text-[10px] font-medium">Profile</span>
+        </button>
+      </div>
+
+      {/* Mobile Rooms Drawer */}
+      {mobileRoomsOpen && (
+        <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-white border-t border-slate-200 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-40 max-h-[60vh] overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 className="font-semibold text-sm">Your Rooms</h3>
+            <button onClick={() => setMobileRoomsOpen(false)}><X className="w-4 h-4 text-slate-400" /></button>
+          </div>
+          <div className="overflow-y-auto p-2">
+            {rooms?.map((room: any) => (
+              <Link
+                key={room.id}
+                href={`/dashboard?room_id=${room.id}`}
+                onClick={() => setMobileRoomsOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                {room.type === "branch" ? (
+                  <div className="p-2 bg-blue-50 rounded-lg"><Users className="w-4 h-4 text-blue-500" /></div>
+                ) : room.type === "founder" ? (
+                  <div className="p-2 bg-purple-50 rounded-lg"><User className="w-4 h-4 text-purple-500" /></div>
+                ) : (
+                  <div className="p-2 bg-green-50 rounded-lg"><Users className="w-4 h-4 text-green-500" /></div>
+                )}
+                {room.name}
+              </Link>
+            ))}
+            {currentUser?.role === "owner" && (
+              <>
+                <div className="mx-4 my-2 border-t border-slate-100"></div>
+                <Link
+                  href="/dashboard/staff"
+                  onClick={() => setMobileRoomsOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors text-indigo-600"
+                >
+                  <div className="p-2 bg-indigo-50 rounded-lg"><UserPlus className="w-4 h-4" /></div>
+                  Staff Management
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Profile Drawer */}
+      {mobileProfileOpen && (
+        <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-white border-t border-slate-200 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-40 overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 className="font-semibold text-sm">Profile Account</h3>
+            <button onClick={() => setMobileProfileOpen(false)}><X className="w-4 h-4 text-slate-400" /></button>
+          </div>
+          <div className="p-6 flex flex-col items-center">
+            <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl font-bold mb-3">
+              {currentUser?.name?.charAt(0)}
+            </div>
+            <h2 className="text-lg font-bold text-slate-800">{currentUser?.name}</h2>
+            <p className="text-sm text-slate-500 capitalize mb-6">{currentUser?.role.replace('_', ' ')}</p>
+            
+            <Button onClick={handleLogout} className="w-full bg-slate-900 text-white rounded-xl h-12">
+              <LogOut className="w-4 h-4 mr-2" /> Log Out
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Notifications Drawer */}
+      {showNotifications && (
+        <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-white border-t border-slate-200 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-40 max-h-[60vh] overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 className="font-semibold text-sm">Notifications</h3>
+            <button onClick={() => setShowNotifications(false)}><X className="w-4 h-4 text-slate-400" /></button>
+          </div>
+          <div className="overflow-y-auto p-2">
+            {notifications?.length === 0 ? (
+              <div className="p-8 text-center text-sm text-zinc-500">No notifications</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {notifications?.map((notif: any) => (
+                  <div key={notif.id} className={`p-4 rounded-xl text-sm flex gap-3 ${notif.is_read ? 'opacity-60 bg-slate-50' : 'bg-indigo-50 border border-indigo-100'}`}>
+                    <div className="flex-1">
+                      <p className="text-slate-800">{notif.message}</p>
+                      <p className="text-xs text-slate-400 mt-2">{new Date(notif.created_at).toLocaleString()}</p>
+                    </div>
+                    {!notif.is_read && (
+                      <button 
+                        onClick={() => markReadMutation.mutate(notif.id)}
+                        className="text-emerald-500 hover:text-emerald-600 transition-colors self-start mt-1 bg-white rounded-full p-1 shadow-sm"
+                        title="Mark as read"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

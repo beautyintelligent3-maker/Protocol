@@ -1,108 +1,114 @@
+import { supabase } from './supabase';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-function getHeaders() {
+export async function fetchApi(endpoint: string, options: RequestInit = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  
   const headers: Record<string, string> = {
-    "Content-Type": "application/json"
+    'Content-Type': 'application/json',
+    ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+    ...(options.headers as Record<string, string>),
   };
-  if (typeof window !== "undefined") {
-    const mockUser = localStorage.getItem("mock_user");
-    if (mockUser) {
-      headers["X-Mock-User"] = mockUser;
-    }
+
+  // If we are sending FormData, we must let the browser set the Content-Type with the boundary
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
   }
-  return headers;
+
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'An error occurred';
+    try {
+        const errorData = await res.json();
+        errorMessage = errorData.detail || errorMessage;
+    } catch (e) {
+        // ignore
+    }
+    throw new Error(errorMessage);
+  }
+
+  return res.json();
 }
 
 export async function fetchRooms() {
-  const res = await fetch(`${API_BASE_URL}/tickets/rooms`, { headers: getHeaders() });
-  if (!res.ok) {
-    throw new Error("Failed to fetch rooms");
-  }
-  return res.json();
+  return fetchApi("/tickets/rooms");
 }
 
 export async function fetchTickets(roomId?: string) {
   const url = roomId 
-    ? `${API_BASE_URL}/tickets?room_id=${roomId}` 
-    : `${API_BASE_URL}/tickets`;
-    
-  const res = await fetch(url, { headers: getHeaders() });
-  if (!res.ok) {
-    throw new Error("Failed to fetch tickets");
-  }
-  return res.json();
+    ? `/tickets?room_id=${roomId}` 
+    : `/tickets`;
+  return fetchApi(url);
 }
 
 export async function fetchTicketDetails(ticketId: string) {
-  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, { headers: getHeaders() });
-  if (!res.ok) {
-    throw new Error("Failed to fetch ticket details");
-  }
-  return res.json();
+  return fetchApi(`/tickets/${ticketId}`);
 }
 
 export async function createTicket(ticketData: any) {
-  const res = await fetch(`${API_BASE_URL}/tickets`, {
+  return fetchApi(`/tickets`, {
     method: "POST",
-    headers: getHeaders(),
     body: JSON.stringify(ticketData),
   });
-  if (!res.ok) throw new Error("Failed to create ticket");
-  return res.json();
 }
 
-export async function postMessage(ticketId: string, content: string, type: string = "comment") {
-  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/messages`, {
+export async function postMessage(ticketId: string, content: string, type: string = "comment", file?: File | null) {
+  const formData = new FormData();
+  formData.append("content", content);
+  formData.append("type", type);
+  if (file) {
+    formData.append("file", file);
+  }
+
+  return fetchApi(`/tickets/${ticketId}/messages`, {
     method: "POST",
-    headers: getHeaders(),
-    body: JSON.stringify({ content, type }),
+    body: formData,
   });
-  if (!res.ok) throw new Error("Failed to post message");
-  return res.json();
 }
 
 export async function updateTicket(ticketId: string, updates: any) {
-  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}`, {
+  return fetchApi(`/tickets/${ticketId}`, {
     method: "PATCH",
-    headers: getHeaders(),
     body: JSON.stringify(updates),
   });
-  if (!res.ok) throw new Error("Failed to update ticket");
-  return res.json();
 }
 
 export async function approveTicket(ticketId: string) {
-  const res = await fetch(`${API_BASE_URL}/tickets/${ticketId}/approve`, {
+  return fetchApi(`/tickets/${ticketId}/approve`, {
     method: "PATCH",
-    headers: getHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to approve ticket");
-  return res.json();
 }
 
 export async function fetchAllUsers() {
-  const res = await fetch(`${API_BASE_URL}/users`, { headers: getHeaders() });
-  if (!res.ok) throw new Error("Failed to fetch users");
-  return res.json();
+  return fetchApi(`/users`);
+}
+
+export async function fetchCurrentUser() {
+  return fetchApi(`/users/me`);
+}
+
+export async function createUser(userData: any) {
+  return fetchApi(`/users`, {
+    method: "POST",
+    body: JSON.stringify(userData),
+  });
 }
 
 export async function fetchNotifications() {
-  const res = await fetch(`${API_BASE_URL}/notifications`, { headers: getHeaders() });
-  if (!res.ok) throw new Error("Failed to fetch notifications");
-  return res.json();
+  return fetchApi(`/notifications`);
 }
 
 export async function markNotificationRead(id: string) {
-  const res = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+  return fetchApi(`/notifications/${id}/read`, {
     method: "PATCH",
-    headers: getHeaders(),
   });
-  if (!res.ok) throw new Error("Failed to mark notification as read");
-  return res.json();
 }
 
 export async function fetchAllRooms() {
-  const res = await fetch(`${API_BASE_URL}/rooms/all`, { headers: getHeaders() });
-  if (!res.ok) throw new Error("Failed to fetch all rooms");
-  return res.json();
+  return fetchApi(`/rooms/all`);
 }

@@ -73,7 +73,7 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>
-            <Select value={priority} onValueChange={setPriority}>
+            <Select value={priority} onValueChange={(val) => setPriority(val || "low")}>
               <SelectTrigger>
                 <SelectValue placeholder="Select priority" />
               </SelectTrigger>

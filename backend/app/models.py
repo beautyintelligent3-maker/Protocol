@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Enum as SQLEnum, Boolean
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Enum as SQLEnum, Boolean, LargeBinary
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -118,6 +118,12 @@ class Message(Base):
     author_id = Column(UUID(as_uuid=True), ForeignKey("employees.id"), index=True)
     content = Column(Text)
     type = Column(SQLEnum(MessageType), default=MessageType.comment)
+    
+    # Attachment fields
+    attachment_name = Column(String, nullable=True)
+    attachment_type = Column(String, nullable=True)
+    attachment_data = Column(LargeBinary, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
 
     ticket = relationship("Ticket", back_populates="messages")

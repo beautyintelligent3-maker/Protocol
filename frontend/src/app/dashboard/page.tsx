@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchTickets, fetchTicketDetails, postMessage, updateTicket, fetchAllUsers, fetchAllRooms, approveTicket } from "@/lib/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
-import { Loader2, Ticket, MessageSquare, Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Ticket, MessageSquare, Send, CheckCircle2, AlertCircle, ArrowLeft, Paperclip, Download, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +20,7 @@ function DashboardContent() {
   const ticketId = searchParams.get("ticket_id");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [comment, setComment] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
 
   const { data: fetchedTickets, isLoading, error } = useQuery({
@@ -42,10 +43,11 @@ function DashboardContent() {
   });
 
   const postMessageMutation = useMutation({
-    mutationFn: (content: string) => postMessage(ticketId as string, content),
+    mutationFn: (data: { content: string, file?: File | null }) => postMessage(ticketId as string, data.content, "comment", data.file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
       setComment("");
+      setSelectedFile(null);
     }
   });
 
@@ -86,35 +88,35 @@ function DashboardContent() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "open": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-      case "in_progress": return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
-      case "approved": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
-      case "resolved": return "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200";
-      default: return "bg-zinc-100 text-zinc-800";
+      case "open": return "bg-blue-100 text-blue-800";
+      case "in_progress": return "bg-amber-100 text-amber-800";
+      case "approved": return "bg-emerald-100 text-emerald-800";
+      case "resolved": return "bg-slate-100 text-slate-800";
+      default: return "bg-slate-100 text-slate-800";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "text-red-600 dark:text-red-400";
-      case "medium": return "text-amber-600 dark:text-amber-400";
-      case "low": return "text-green-600 dark:text-green-400";
-      default: return "text-zinc-600";
+      case "high": return "text-red-600";
+      case "medium": return "text-amber-600";
+      case "low": return "text-green-600";
+      default: return "text-slate-600";
     }
   };
 
   return (
-    <div className="flex flex-1 h-full overflow-hidden bg-white dark:bg-zinc-950">
+    <div className="flex flex-1 h-full overflow-hidden bg-white">
       {/* Middle Column (Feed) */}
-      <div className={`flex flex-col border-r border-zinc-200 dark:border-zinc-800 ${ticketId ? 'w-1/3 min-w-[320px] max-w-sm hidden md:flex' : 'w-full'}`}>
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+      <div className={`flex flex-col border-r border-slate-200 ${ticketId ? 'w-1/3 min-w-[320px] max-w-sm hidden md:flex' : 'w-full'}`}>
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Ticket className="w-5 h-5 text-zinc-500" />
+              <Ticket className="w-5 h-5 text-slate-500" />
               Tickets
             </h2>
             {roomId && (
-              <Badge variant="outline" className="text-xs font-normal text-zinc-500">
+              <Badge variant="outline" className="text-xs font-normal text-slate-500">
                 Filtered
               </Badge>
             )}
@@ -126,7 +128,7 @@ function DashboardContent() {
         
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="p-8 flex justify-center text-zinc-400">
+            <div className="p-8 flex justify-center text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : error ? (
@@ -134,11 +136,11 @@ function DashboardContent() {
               Failed to load tickets.
             </div>
           ) : tickets?.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500 text-sm">
+            <div className="p-8 text-center text-slate-500 text-sm">
               No tickets found in this room.
             </div>
           ) : (
-            <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            <div className="divide-y divide-slate-200">
               {tickets?.map((ticket: any) => (
                 <div
                   key={ticket.id}
@@ -146,13 +148,13 @@ function DashboardContent() {
                     ...(roomId && { room_id: roomId }),
                     ticket_id: ticket.id
                   }).toString()}`)}
-                  className={`p-4 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors ${
-                    ticket.id === ticketId ? "bg-blue-50/50 dark:bg-zinc-800/50" : ""
+                  className={`p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
+                    ticket.id === ticketId ? "bg-indigo-50/50" : ""
                   }`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-xs font-medium uppercase tracking-wider flex items-center gap-1">
-                      <span className={`w-2 h-2 rounded-full ${getPriorityColor(ticket.priority).replace('text-', 'bg-').replace('dark:text-', 'dark:bg-')}`} />
+                      <span className={`w-2 h-2 rounded-full ${getPriorityColor(ticket.priority).replace('text-', 'bg-')}`} />
                       {ticket.priority}
                     </span>
                     <div className="flex gap-1">
@@ -166,10 +168,10 @@ function DashboardContent() {
                       </Badge>
                     </div>
                   </div>
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm mb-1 leading-tight line-clamp-2">
+                  <h3 className="font-semibold text-slate-900 text-sm mb-1 leading-tight line-clamp-2">
                     {ticket.title}
                   </h3>
-                  <div className="flex items-center gap-2 mt-3 text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
                     <span className="truncate flex-1">
                       {ticket.creator.name}
                     </span>
@@ -186,10 +188,25 @@ function DashboardContent() {
 
       {/* Right Panel (Detail View) */}
       {ticketId ? (
-        <div className="flex-1 flex flex-col bg-zinc-50 dark:bg-zinc-900 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
           {selectedTicket ? (
             <>
-              <div className="p-6 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+              <div className="p-6 bg-white border-b border-slate-200 flex-shrink-0">
+                {/* Mobile Back Button */}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="md:hidden mb-4 -ml-2 text-slate-500 flex items-center gap-2 w-fit hover:bg-slate-100"
+                  onClick={() => {
+                    const params = new URLSearchParams(window.location.search);
+                    params.delete('ticket_id');
+                    router.push(`?${params.toString()}`);
+                  }}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Tickets
+                </Button>
+
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     {selectedTicket.approval_status === "pending" && (
@@ -231,19 +248,19 @@ function DashboardContent() {
                     )}
                   </div>
                 </div>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
+                <h1 className="text-2xl font-bold text-slate-900 mb-2">
                   {selectedTicket.title}
                 </h1>
                 
-                <div className="flex gap-4 mt-4 mb-2">
+                <div className="flex flex-col md:flex-row gap-4 mt-4 mb-2">
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-zinc-500 uppercase mb-1">Assignee</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Assignee</p>
                     <Select 
                       value={selectedTicket.assignee?.id || "unassigned"} 
                       onValueChange={(val) => updateTicketMutation.mutate({ assigned_to_id: val === "unassigned" ? null : val })}
                       disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
                     >
-                      <SelectTrigger className="h-8 text-xs w-[180px]">
+                      <SelectTrigger className="h-8 text-xs w-full md:w-[180px]">
                         <SelectValue placeholder="Unassigned" />
                       </SelectTrigger>
                       <SelectContent>
@@ -260,13 +277,13 @@ function DashboardContent() {
                   </div>
 
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-zinc-500 uppercase mb-1">Escalate to Department</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Escalate to Department</p>
                     <Select 
                       value="placeholder"
                       onValueChange={(val) => updateTicketMutation.mutate({ add_room_id: val })}
                       disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
                     >
-                      <SelectTrigger className="h-8 text-xs w-[180px]">
+                      <SelectTrigger className="h-8 text-xs w-full md:w-[180px]">
                         <SelectValue placeholder="Escalate..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -285,31 +302,31 @@ function DashboardContent() {
 
                 <div className="flex flex-wrap gap-1 mt-3 mb-4">
                   {selectedTicket.rooms?.map((room: any) => (
-                    <Badge key={room.id} variant="secondary" className="bg-zinc-100 text-zinc-600 border border-zinc-200">
+                    <Badge key={room.id} variant="secondary" className="bg-slate-100 text-slate-600 border border-slate-200">
                       #{room.name}
                     </Badge>
                   ))}
                 </div>
 
-                <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 border border-zinc-100 dark:border-zinc-800">
-                  <span>Opened by <strong className="text-zinc-700 dark:text-zinc-300">{selectedTicket.creator.name}</strong></span>
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <span>Opened by <strong className="text-slate-700">{selectedTicket.creator.name}</strong></span>
                   <span>•</span>
                   <span>{new Date(selectedTicket.created_at).toLocaleString()}</span>
                 </div>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-6 bg-zinc-50 dark:bg-zinc-900">
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
                 <div className="max-w-4xl mx-auto">
                   {/* Original Description */}
-                  <div className="mb-8 bg-white dark:bg-zinc-950 rounded-xl p-5 shadow-sm border border-zinc-100 dark:border-zinc-800">
-                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3 border-b border-zinc-100 dark:border-zinc-800 pb-2">Description</h3>
-                    <p className="text-zinc-700 dark:text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">
+                  <div className="mb-8 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 border-b border-slate-100 pb-2">Description</h3>
+                    <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
                       {selectedTicket.description}
                     </p>
                   </div>
                   
                   {/* Thread Area */}
-                  <div className="flex items-center gap-2 text-sm font-medium text-zinc-500 mb-4 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500 mb-4 uppercase tracking-wider">
                     <MessageSquare className="w-4 h-4" />
                     Thread
                   </div>
@@ -318,41 +335,76 @@ function DashboardContent() {
                     {selectedTicket.messages?.map((msg: any) => (
                       msg.type === "status_change" ? (
                         <div key={msg.id} className="flex justify-center my-4">
-                          <span className="text-xs font-medium text-zinc-400 bg-zinc-100 dark:bg-zinc-800/50 px-3 py-1 rounded-full">
+                          <span className="text-xs font-medium text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
                             {msg.author.name} {msg.content.toLowerCase()}
                           </span>
                         </div>
                       ) : (
-                        <div key={msg.id} className="bg-white dark:bg-zinc-950 rounded-xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800">
+                        <div key={msg.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{msg.author.name}</span>
-                            <span className="text-xs text-zinc-400">{new Date(msg.created_at).toLocaleString()}</span>
+                            <span className="font-semibold text-sm text-slate-900">{msg.author.name}</span>
+                            <span className="text-xs text-slate-400">{new Date(msg.created_at).toLocaleString()}</span>
                           </div>
-                          <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{msg.content}</p>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{msg.content}</p>
+                          {msg.attachment_name && (
+                            <div className="mt-3">
+                              <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/tickets/messages/${msg.id}/attachment`} target="_blank" rel="noreferrer" className="inline-flex items-center px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors border border-indigo-100">
+                                <Paperclip className="w-3.5 h-3.5 mr-2" />
+                                {msg.attachment_name}
+                                <Download className="w-3.5 h-3.5 ml-2 opacity-70" />
+                              </a>
+                            </div>
+                          )}
                         </div>
                       )
                     ))}
                     
                     {selectedTicket.messages?.length === 0 && (
-                      <div className="text-center text-zinc-400 text-sm py-4">
+                      <div className="text-center text-slate-400 text-sm py-4">
                         No messages yet. Start the conversation!
                       </div>
                     )}
                   </div>
                   
                   {/* Reply Box */}
-                  <div className="bg-white dark:bg-zinc-950 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm">
+                  <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                    {selectedFile && (
+                      <div className="mb-2 flex items-center">
+                        <span className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">
+                          <Paperclip className="w-3 h-3 mr-1" />
+                          <span className="max-w-[200px] truncate">{selectedFile.name}</span>
+                          <button onClick={() => setSelectedFile(null)} className="ml-2 text-indigo-400 hover:text-indigo-600">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      </div>
+                    )}
                     <Textarea 
                       placeholder="Type your message here..."
                       className="min-h-[100px] border-none focus-visible:ring-0 shadow-none resize-none p-0"
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                     />
-                    <div className="flex justify-end mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                      <div>
+                        <input 
+                          type="file" 
+                          id="file-upload" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setSelectedFile(e.target.files[0]);
+                            }
+                          }}
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-colors">
+                          <Paperclip className="w-4 h-4" />
+                        </label>
+                      </div>
                       <Button 
                         size="sm" 
-                        disabled={!comment.trim() || postMessageMutation.isPending}
-                        onClick={() => postMessageMutation.mutate(comment)}
+                        disabled={(!comment.trim() && !selectedFile) || postMessageMutation.isPending}
+                        onClick={() => postMessageMutation.mutate({ content: comment, file: selectedFile })}
                       >
                         {postMessageMutation.isPending ? "Sending..." : "Send Message"}
                         {!postMessageMutation.isPending && <Send className="w-4 h-4 ml-2" />}
@@ -363,16 +415,16 @@ function DashboardContent() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-zinc-500">
+            <div className="flex-1 flex items-center justify-center text-slate-500">
               Loading ticket details...
             </div>
           )}
         </div>
       ) : (
-        <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-zinc-50/50 dark:bg-zinc-900/50 text-zinc-400">
-          <Ticket className="w-16 h-16 mb-4 text-zinc-200 dark:text-zinc-800" />
-          <p className="text-lg font-medium text-zinc-500">Select a ticket to view details</p>
-          <p className="text-sm text-zinc-400 max-w-sm text-center mt-2">
+        <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-slate-50/50 text-slate-400">
+          <Ticket className="w-16 h-16 mb-4 text-slate-200" />
+          <p className="text-lg font-medium text-slate-500">Select a ticket to view details</p>
+          <p className="text-sm text-slate-400 max-w-sm text-center mt-2">
             Click on any ticket in the feed on the left to see its full description and message thread.
           </p>
         </div>
@@ -383,7 +435,7 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="p-8 flex justify-center text-zinc-400"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+    <Suspense fallback={<div className="p-8 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
       <DashboardContent />
     </Suspense>
   );

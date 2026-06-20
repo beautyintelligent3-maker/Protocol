@@ -53,6 +53,19 @@ app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(rooms.router, prefix="/api/v1/rooms", tags=["rooms"])
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
 
+@app.get("/")
+def root():
+    return {"message": "Welcome to the Ticketing System API"}
+
 @app.get("/health")
 def health_check(request: Request):
     return {"status": "ok"}
+
+@app.get("/test-db")
+def test_db(db: Session = Depends(database.get_db)):
+    try:
+        count = db.query(models.Employee).count()
+        return {"status": "success", "users_count": count}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}

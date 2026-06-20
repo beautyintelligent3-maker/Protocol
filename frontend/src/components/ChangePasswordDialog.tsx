@@ -52,7 +52,13 @@ export function ChangePasswordDialog({ children }: { children?: React.ReactNode 
       <DialogTrigger 
         render={
           children ? (
-            <>{children}</>
+            // If children is a valid React element, pass it directly to render.
+            // Otherwise, wrap it in a span so it can receive DOM events/attributes.
+            typeof children === "object" && children !== null && "type" in children ? (
+              children as React.ReactElement
+            ) : (
+              <span className="cursor-pointer inline-flex">{children}</span>
+            )
           ) : (
             <Button variant="outline" className="w-full justify-start text-slate-600 hover:text-slate-900">
               <KeyRound className="w-4 h-4 mr-2" />

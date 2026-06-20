@@ -60,12 +60,3 @@ def root():
 @app.get("/health")
 def health_check(request: Request):
     return {"status": "ok"}
-
-@app.get("/test-db")
-def test_db(db: Session = Depends(database.get_db)):
-    try:
-        count = db.query(models.Employee).count()
-        return {"status": "success", "users_count": count}
-    except Exception as e:
-        import traceback
-        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}

@@ -9,13 +9,12 @@ load_dotenv()
 # The default URL will point to our local docker-compose postgres DB
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgrespassword@localhost:5432/ticketing")
 
-# Add connection pooling for scalability
+from sqlalchemy.pool import NullPool
+
+# Use NullPool for serverless environments to prevent dead connection leaks
 engine = create_engine(
     DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=1800
+    poolclass=NullPool
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

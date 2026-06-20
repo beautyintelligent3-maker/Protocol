@@ -12,12 +12,14 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgrespassword
 if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
 
-from sqlalchemy.pool import NullPool
-
-# Use NullPool for serverless environments to prevent dead connection leaks
+# Enable connection pooling but use pool_pre_ping to automatically
+# discard connections that Supabase dropped while the serverless function was frozen.
 engine = create_engine(
     DATABASE_URL,
-    poolclass=NullPool
+    pool_pre_ping=True,
+    pool_recycle=300,
+    pool_size=5,
+    max_overflow=10
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

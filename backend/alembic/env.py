@@ -64,6 +64,8 @@ def run_migrations_online() -> None:
     
     db_url = os.getenv("DATABASE_URL")
     if db_url:
+        # Escape '%' for configparser interpolation
+        db_url = db_url.replace("%", "%%")
         config.set_main_option("sqlalchemy.url", db_url)
 
     connectable = engine_from_config(

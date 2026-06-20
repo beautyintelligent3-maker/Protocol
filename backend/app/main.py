@@ -40,7 +40,7 @@ app.add_middleware(PayloadSizeLimitMiddleware, max_upload_size=50 * 1024 * 1024)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"]) # In production, restrict this
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"], # Allowing all origins for easy production deployment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

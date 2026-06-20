@@ -128,8 +128,8 @@ export default function DashboardLayout({
       <aside className="hidden md:flex inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex-col flex-shrink-0">
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 relative">
           <h1 className="text-lg font-bold flex items-center gap-2">
-            <LayoutDashboard className="w-5 h-5" />
-            ClinicOS
+            <img src="/logo.jpeg" alt="BIW OS Logo" className="w-6 h-6 rounded object-cover" />
+            BIW OS
           </h1>
           <NotificationBell />
         </div>
@@ -204,22 +204,22 @@ export default function DashboardLayout({
       </main>
 
       {/* Mobile Bottom Navigation Bar (Hidden on Desktop) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white border-t border-slate-200 flex items-center justify-around z-50 px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-        <Link href="/dashboard" className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-[60px] bg-white/85 backdrop-blur-xl border-t border-slate-200/50 flex items-center justify-around z-50 px-2 pb-safe shadow-[0_-4px_25px_rgba(0,0,0,0.06)]">
+        <Link href="/dashboard" className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600 transition-colors active:scale-95">
           <LayoutDashboard className="w-5 h-5 mb-1" />
           <span className="text-[10px] font-medium">Tickets</span>
         </Link>
         
-        <button onClick={() => { setMobileRoomsOpen(!mobileRoomsOpen); setMobileProfileOpen(false); setShowNotifications(false); }} className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600">
+        <button onClick={() => { setMobileRoomsOpen(!mobileRoomsOpen); setMobileProfileOpen(false); setShowNotifications(false); }} className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600 transition-colors active:scale-95">
           <Users className="w-5 h-5 mb-1" />
           <span className="text-[10px] font-medium">Rooms</span>
         </button>
 
-        <div className="flex flex-col items-center justify-center w-16 h-full text-slate-500">
+        <div className="flex flex-col items-center justify-center w-16 h-full text-slate-500 transition-colors active:scale-95">
           <NotificationBell />
         </div>
 
-        <button onClick={() => { setMobileProfileOpen(!mobileProfileOpen); setMobileRoomsOpen(false); setShowNotifications(false); }} className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600">
+        <button onClick={() => { setMobileProfileOpen(!mobileProfileOpen); setMobileRoomsOpen(false); setShowNotifications(false); }} className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600 transition-colors active:scale-95">
           <User className="w-5 h-5 mb-1" />
           <span className="text-[10px] font-medium">Profile</span>
         </button>
@@ -227,8 +227,8 @@ export default function DashboardLayout({
 
       {/* Mobile Rooms Drawer */}
       {mobileRoomsOpen && (
-        <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-white border-t border-slate-200 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-40 max-h-[60vh] overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-white border-t border-slate-200 rounded-t-3xl shadow-[0_-15px_40px_rgba(0,0,0,0.12)] z-40 max-h-[60vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300 ease-out">
+          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-semibold text-sm">Your Rooms</h3>
             <button onClick={() => setMobileRoomsOpen(false)}><X className="w-4 h-4 text-slate-400" /></button>
           </div>

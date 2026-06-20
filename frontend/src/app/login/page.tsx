@@ -42,9 +42,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-indigo-50 p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-indigo-900 mb-2">ClinicOS</h1>
-          <p className="text-slate-600">Sign in to manage your clinic tickets</p>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src="/logo.jpeg" alt="BIW OS Logo" className="w-16 h-16 rounded-xl mb-4 shadow-sm object-cover" />
+          <h1 className="text-3xl font-bold tracking-tight text-indigo-900 mb-2">BIW OS</h1>
+          <p className="text-slate-600">Sign in to manage your system</p>
         </div>
 
         <Card className="bg-white border-slate-200 shadow-xl">
@@ -66,7 +67,7 @@ export default function LoginPage() {
                 <Input
                   type="email"
                   required
-                  placeholder="name@clinic.com"
+                  placeholder="name@biw.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-slate-50 border-slate-200 text-slate-900"
@@ -102,8 +103,8 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-        <p className="text-center text-slate-500 text-sm mt-8">
-          Don't have an account? Contact your clinic owner to request access.
+        <p className="text-center text-sm text-slate-500 mt-8">
+          Don't have an account? Contact your BIW owner to request access.
         </p>
       </div>
     </div>

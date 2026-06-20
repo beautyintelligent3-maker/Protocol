@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ClinicOS Ticketing",
-  description: "Internal Ticketing System",
+  title: "BIW OS",
+  description: "Internal System",
 };
 
 export const viewport = {

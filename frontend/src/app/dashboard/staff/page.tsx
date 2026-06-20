@@ -130,7 +130,7 @@ export default function StaffManagementPage() {
 
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-slate-700">Email Address</label>
-                  <Input type="email" required placeholder="jane@clinic.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
+                  <Input type="email" required placeholder="jane@biw.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
                 </div>
 
                 <div className="space-y-2">

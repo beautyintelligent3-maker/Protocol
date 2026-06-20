@@ -182,8 +182,8 @@ function DashboardContent() {
                     ...(roomId && { room_id: roomId }),
                     ticket_id: ticket.id
                   }).toString()}`)}
-                  className={`p-4 cursor-pointer hover:bg-slate-50 transition-colors ${
-                    ticket.id === ticketId ? "bg-indigo-50/50" : ""
+                  className={`p-4 cursor-pointer transition-all duration-200 hover:bg-slate-50 hover:shadow-sm hover:z-10 relative hover:-translate-y-0.5 active:scale-[0.98] ${
+                    ticket.id === ticketId ? "bg-indigo-50/60 shadow-[inset_4px_0_0_0_#6366f1]" : ""
                   }`}
                 >
                   <div className="flex justify-between items-start mb-2">
@@ -222,7 +222,7 @@ function DashboardContent() {
 
       {/* Right Panel (Detail View) */}
       {ticketId ? (
-        <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden animate-in slide-in-from-right-8 fade-in duration-300">
           {selectedTicket ? (
             <>
               <div className="p-6 bg-white border-b border-slate-200 flex-shrink-0">

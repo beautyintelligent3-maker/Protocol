@@ -24,6 +24,9 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
   const { data: rooms } = useQuery({ queryKey: ["allRooms"], queryFn: fetchAllRooms });
   const { data: users } = useQuery({ queryKey: ["allUsers"], queryFn: fetchAllUsers });
 
+  const selectedRoom = rooms?.find((r: any) => r.id === selectedRoomId);
+  const isUniversalRoom = selectedRoom?.type === "universal" || selectedRoom?.name?.toLowerCase() === "universal";
+
   const filteredUsers = users?.filter((u: any) => selectedRoomId && u.room_ids?.includes(selectedRoomId)) || [];
 
   const createTicketMutation = useMutation({
@@ -113,22 +116,30 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="assignee">Assign To</Label>
-            <Select value={assignedToId} onValueChange={(val) => setAssignedToId(val || "")} disabled={!selectedRoomId}>
-              <SelectTrigger>
-                <SelectValue placeholder={selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"}>
-                  {assignedToId === "none" ? "Unassigned" : (filteredUsers.find((u: any) => u.id === assignedToId)?.name || (selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"))}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Unassigned</SelectItem>
-                {filteredUsers.map((u: any) => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          
+          {isUniversalRoom ? (
+            <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-md text-sm text-indigo-800">
+              <span className="font-semibold">Notice Board:</span> Announcements in the Universal room are broadcast to all employees. No assignee required.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="assignee">Assign To</Label>
+              <Select value={assignedToId} onValueChange={(val) => setAssignedToId(val || "")} disabled={!selectedRoomId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"}>
+                    {assignedToId === "none" ? "Unassigned" : (filteredUsers.find((u: any) => u.id === assignedToId)?.name || (selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"))}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {filteredUsers.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="due_date">Deadline (Optional)</Label>
             <Input

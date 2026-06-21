@@ -9,6 +9,9 @@ import { LayoutDashboard, Users, User, Loader2, Bell, CheckCircle2, UserPlus, Lo
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+
+export const getSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
 export default function DashboardLayout({
   children,
 }: {
@@ -172,7 +175,7 @@ export default function DashboardLayout({
             {rooms?.map((room: any) => (
               <Link
                 key={room.id}
-                href={`/dashboard?room_id=${room.id}`}
+                href={`/dashboard?room=${getSlug(room.name)}`}
                 className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 transition-colors"
               >
                 {room.type === "branch" ? (
@@ -270,9 +273,9 @@ export default function DashboardLayout({
             {rooms?.map((room: any) => (
               <Link
                 key={room.id}
-                href={`/dashboard?room_id=${room.id}`}
+                href={`/dashboard?room=${getSlug(room.name)}`}
                 onClick={() => setMobileRoomsOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors active:bg-slate-100"
               >
                 {room.type === "branch" ? (
                   <div className="p-2 bg-blue-50 rounded-lg"><Users className="w-4 h-4 text-blue-500" /></div>

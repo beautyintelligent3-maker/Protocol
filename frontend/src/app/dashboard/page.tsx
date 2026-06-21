@@ -13,11 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CreateTicketDialog } from "@/components/CreateTicketDialog";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
+import { getSlug } from "./layout";
+
 function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const roomId = searchParams.get("room_id");
+  const roomSlug = searchParams.get("room");
+  const roomFallbackId = searchParams.get("room_id");
   const ticketId = searchParams.get("ticket_id");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [filterStaffId, setFilterStaffId] = useState("");
@@ -54,13 +57,21 @@ function DashboardContent() {
       supabase.removeChannel(channel);
     };
   }, [ticketId, queryClient]);
+  const { data: allRooms } = useQuery({
+    queryKey: ["allRooms"],
+    queryFn: fetchAllRooms,
+  });
+
+  const roomId = roomSlug ? allRooms?.find((r: any) => getSlug(r.name) === roomSlug)?.id : roomFallbackId;
+  const currentRoomName = roomId ? allRooms?.find((r: any) => r.id === roomId)?.name : "All Tickets";
+
   const { data: fetchedTickets, isLoading, error } = useQuery({
     queryKey: ["tickets", roomId, filterStaffId],
     queryFn: () => fetchTickets({
       room_id: roomId || undefined,
       assignee_staff_id: filterStaffId || undefined,
     }),
-    enabled: true,
+    enabled: roomSlug ? !!roomId : true,
   });
 
   const tickets = fetchedTickets ? [...fetchedTickets]
@@ -113,11 +124,6 @@ function DashboardContent() {
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
     }
-  });
-
-  const { data: allRooms } = useQuery({
-    queryKey: ["allRooms"],
-    queryFn: fetchAllRooms,
   });
 
   const getStatusColor = (status: string) => {
@@ -271,7 +277,7 @@ function DashboardContent() {
                   size="sm" 
                   className="md:hidden mb-4 -ml-2 text-slate-500 flex items-center gap-2 w-fit hover:bg-slate-100"
                   onClick={() => {
-                    const params = new URLSearchParams(window.location.search);
+                    const params = new URLSearchParams(searchParams.toString());
                     params.delete('ticket_id');
                     router.push(`?${params.toString()}`);
                   }}

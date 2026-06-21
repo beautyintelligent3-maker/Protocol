@@ -24,7 +24,7 @@ def seed_database():
 
         # 1. Create Rooms (Branches & Departments)
         branches = ["Uttara Ladies", "Bashundhara Gents", "Bashundhara Ladies"]
-        depts = ["HR", "IT Support", "Management"]
+        depts = ["HR", "IT Team", "Management"]
         rooms = {}
 
         for b in branches:

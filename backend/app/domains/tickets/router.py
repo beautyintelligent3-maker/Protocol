@@ -195,16 +195,19 @@ async def post_message(
 
     # Security check
     if current_user.role != "owner":
-        if current_user.role in ["manager", "hr", "it_team"]:
-            if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
-                raise HTTPException(
-                    status_code=403, detail="Not authorized to comment on this ticket"
-                )
-        else:
-            if ticket.assigned_to_id != current_user.id:
-                raise HTTPException(
-                    status_code=403, detail="Not authorized to comment on this ticket"
-                )
+        is_universal = any(link.room.type == models.RoomType.universal for link in ticket.room_links)
+
+        if not is_universal:
+            if current_user.role in ["manager", "hr", "it_team"]:
+                if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
+                    raise HTTPException(
+                        status_code=403, detail="Not authorized to comment on this ticket"
+                    )
+            else:
+                if ticket.assigned_to_id != current_user.id:
+                    raise HTTPException(
+                        status_code=403, detail="Not authorized to comment on this ticket"
+                    )
 
     attachment_data = None
     attachment_name = None

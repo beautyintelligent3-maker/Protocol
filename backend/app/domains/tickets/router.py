@@ -60,17 +60,11 @@ def get_tickets(
     if current_user.role == "owner":
         # Owners see everything
         pass
-    elif current_user.role in ["manager", "hr", "it_team"]:
-        # Creators/Managers see what they made or what is assigned to them, plus Universal notices
+    else:
+        # Everyone else sees what they created, what is assigned to them, plus Universal notices
         query = query.filter(
             (models.Ticket.creator_id == current_user.id)
             | (models.Ticket.assigned_to_id == current_user.id)
-            | models.Ticket.id.in_(universal_room_tickets)
-        )
-    else:
-        # Staff ONLY see what is assigned to them, plus Universal notices
-        query = query.filter(
-            (models.Ticket.assigned_to_id == current_user.id)
             | models.Ticket.id.in_(universal_room_tickets)
         )
 
@@ -165,12 +159,8 @@ def get_ticket(
         is_universal = any(link.room.type == models.RoomType.universal for link in ticket.room_links)
 
         if not is_universal:
-            if current_user.role in ["manager", "hr", "it_team"]:
-                if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
-                    raise HTTPException(status_code=403, detail="Not authorized to view this ticket")
-            else:
-                if ticket.assigned_to_id != current_user.id:
-                    raise HTTPException(status_code=403, detail="Not authorized to view this ticket")
+            if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
+                raise HTTPException(status_code=403, detail="Not authorized to view this ticket")
 
     ticket.rooms = [link.room for link in ticket.room_links]
     return ticket
@@ -198,16 +188,10 @@ async def post_message(
         is_universal = any(link.room.type == models.RoomType.universal for link in ticket.room_links)
 
         if not is_universal:
-            if current_user.role in ["manager", "hr", "it_team"]:
-                if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
-                    raise HTTPException(
-                        status_code=403, detail="Not authorized to comment on this ticket"
-                    )
-            else:
-                if ticket.assigned_to_id != current_user.id:
-                    raise HTTPException(
-                        status_code=403, detail="Not authorized to comment on this ticket"
-                    )
+            if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
+                raise HTTPException(
+                    status_code=403, detail="Not authorized to comment on this ticket"
+                )
 
     attachment_data = None
     attachment_name = None
@@ -263,12 +247,8 @@ def get_message_attachment(
     # Check access to ticket
     ticket = db.query(models.Ticket).filter(models.Ticket.id == message.ticket_id).first()
     if current_user.role != "owner":
-        if current_user.role in ["manager", "hr", "it_team"]:
-            if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
-                raise HTTPException(status_code=403, detail="Not authorized to view this ticket")
-        else:
-            if ticket.assigned_to_id != current_user.id:
-                raise HTTPException(status_code=403, detail="Not authorized to view this ticket")
+        if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this ticket")
 
     return Response(
         content=message.attachment_data,
@@ -294,12 +274,8 @@ def update_ticket(
 
     # Security check
     if current_user.role != "owner":
-        if current_user.role in ["manager", "hr", "it_team"]:
-            if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
-                raise HTTPException(status_code=403, detail="Not authorized to modify this ticket")
-        else:
-            if ticket.assigned_to_id != current_user.id:
-                raise HTTPException(status_code=403, detail="Not authorized to modify this ticket")
+        if ticket.creator_id != current_user.id and ticket.assigned_to_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this ticket")
 
     # Update logic and system message generation
     if ticket_in.status is not None and ticket_in.status != ticket.status:

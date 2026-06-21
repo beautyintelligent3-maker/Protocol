@@ -16,8 +16,16 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     delete headers['Content-Type'];
   }
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  // Hard bust Next.js and Vercel edge caching by adding a unique timestamp to GET requests
+  let finalEndpoint = endpoint;
+  if (!options.method || options.method.toUpperCase() === 'GET') {
+    const separator = endpoint.includes('?') ? '&' : '?';
+    finalEndpoint = `${endpoint}${separator}_t=${new Date().getTime()}`;
+  }
+
+  const res = await fetch(`${API_BASE_URL}${finalEndpoint}`, {
     ...options,
+    cache: 'no-store', // Hard opt-out of Next.js fetch cache
     headers: {
       ...headers,
       "Cache-Control": "no-cache, no-store, must-revalidate",

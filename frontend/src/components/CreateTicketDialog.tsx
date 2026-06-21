@@ -21,8 +21,8 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
   const [assignedToId, setAssignedToId] = useState<string>("");
   const queryClient = useQueryClient();
 
-  const { data: rooms } = useQuery({ queryKey: ["rooms"], queryFn: fetchAllRooms });
-  const { data: users } = useQuery({ queryKey: ["users"], queryFn: fetchAllUsers });
+  const { data: rooms } = useQuery({ queryKey: ["allRooms"], queryFn: fetchAllRooms });
+  const { data: users } = useQuery({ queryKey: ["allUsers"], queryFn: fetchAllUsers });
 
   const filteredUsers = users?.filter((u: any) => selectedRoomId && u.room_ids?.includes(selectedRoomId)) || [];
 
@@ -102,7 +102,9 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
             <Label htmlFor="room">Room</Label>
             <Select value={selectedRoomId} onValueChange={(val) => { setSelectedRoomId(val || ""); setAssignedToId(""); }} required>
               <SelectTrigger>
-                <SelectValue placeholder="Select a room" />
+                <SelectValue placeholder="Select a room">
+                  {rooms?.find((r: any) => r.id === selectedRoomId)?.name || "Select a room"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {rooms?.map((r: any) => (
@@ -115,7 +117,9 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
             <Label htmlFor="assignee">Assign To</Label>
             <Select value={assignedToId} onValueChange={(val) => setAssignedToId(val || "")} disabled={!selectedRoomId}>
               <SelectTrigger>
-                <SelectValue placeholder={selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"} />
+                <SelectValue placeholder={selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"}>
+                  {assignedToId === "none" ? "Unassigned" : (filteredUsers.find((u: any) => u.id === assignedToId)?.name || (selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"))}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Unassigned</SelectItem>

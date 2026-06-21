@@ -1,20 +1,22 @@
-from typing import List, Any
+from typing import Any, List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.api.deps import get_db, get_current_user
+
 from app import models, schemas
+from app.api.deps import get_current_user, get_db
 from app.config import settings
 
 router = APIRouter()
 
+
 @router.get("/me", response_model=schemas.UserOut)
-def get_current_user_profile(
-    current_user: models.Employee = Depends(get_current_user)
-) -> Any:
+def get_current_user_profile(current_user: models.Employee = Depends(get_current_user)) -> Any:
     """
     Get current logged in user profile.
     """
     return current_user
+
 
 @router.get("", response_model=List[schemas.UserOut])
 def get_users(db: Session = Depends(get_db)) -> Any:
@@ -23,17 +25,20 @@ def get_users(db: Session = Depends(get_db)) -> Any:
     """
     return db.query(models.Employee).filter(models.Employee.is_active == True).all()
 
+
 import os
-from supabase import create_client, Client
-from fastapi import HTTPException, status
 import uuid
+
+from fastapi import HTTPException
+from supabase import Client, create_client
+
 
 @router.post("", response_model=schemas.UserOut)
 def create_user(
     *,
     db: Session = Depends(get_db),
     user_in: schemas.UserCreate,
-    current_user: models.Employee = Depends(get_current_user)
+    current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
     Create new staff user. Only Owners can create accounts.
@@ -43,7 +48,7 @@ def create_user(
 
     supabase_url = settings.SUPABASE_URL
     supabase_key = settings.SUPABASE_SERVICE_ROLE_KEY
-    
+
     if not supabase_url or not supabase_key:
         raise HTTPException(status_code=500, detail="Supabase admin keys not configured")
 
@@ -52,36 +57,39 @@ def create_user(
     try:
         # Create user in Supabase Auth
         # Admin API bypasses signup restrictions and email confirmation
-        res = supabase_admin.auth.admin.create_user({
-            "email": user_in.email,
-            "password": user_in.password,
-            "email_confirm": True,
-            "user_metadata": {"name": user_in.name, "role": user_in.role}
-        })
-        
+        res = supabase_admin.auth.admin.create_user(
+            {
+                "email": user_in.email,
+                "password": user_in.password,
+                "email_confirm": True,
+                "user_metadata": {"name": user_in.name, "role": user_in.role},
+            }
+        )
+
         new_uuid = res.user.id
-        
+
         # Generate staff_id
         from sqlalchemy import text
+
         seq_val = db.execute(text("SELECT nextval('staff_id_seq')")).scalar()
         staff_id_str = str(seq_val).zfill(4)
-        
+
         # Create Employee in local DB with exactly the same UUID
         employee = models.Employee(
             id=uuid.UUID(new_uuid),
             staff_id=staff_id_str,
             email=user_in.email,
             name=user_in.name,
-            role=user_in.role
+            role=user_in.role,
         )
         db.add(employee)
-        
+
         # Link to the selected rooms
         if user_in.room_ids:
             for r_id in user_in.room_ids:
                 room_membership = models.RoomMember(employee_id=employee.id, room_id=r_id)
                 db.add(room_membership)
-        
+
         db.commit()
         db.refresh(employee)
         return employee
@@ -90,13 +98,14 @@ def create_user(
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.patch("/{user_id}", response_model=schemas.UserOut)
 def update_user(
     *,
     db: Session = Depends(get_db),
     user_id: uuid.UUID,
     user_in: schemas.UserUpdate,
-    current_user: models.Employee = Depends(get_current_user)
+    current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
     Update a staff user. Only Owners can update accounts.
@@ -120,7 +129,7 @@ def update_user(
             update_data["email_confirm"] = True
         if user_in.password is not None and len(user_in.password) > 0:
             update_data["password"] = user_in.password
-        
+
         user_metadata = {}
         if user_in.name is not None:
             user_metadata["name"] = user_in.name
@@ -128,18 +137,20 @@ def update_user(
         if user_in.role is not None:
             user_metadata["role"] = user_in.role
             employee.role = user_in.role
-            
+
         if user_metadata:
             update_data["user_metadata"] = user_metadata
-            
+
         if update_data:
             supabase_admin.auth.admin.update_user_by_id(str(user_id), update_data)
-            
+
         if user_in.email is not None:
             employee.email = user_in.email
 
         if user_in.room_ids is not None:
-            db.query(models.RoomMember).filter(models.RoomMember.employee_id == employee.id).delete()
+            db.query(models.RoomMember).filter(
+                models.RoomMember.employee_id == employee.id
+            ).delete()
             for r_id in user_in.room_ids:
                 new_membership = models.RoomMember(employee_id=employee.id, room_id=r_id)
                 db.add(new_membership)
@@ -152,12 +163,13 @@ def update_user(
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.delete("/{user_id}")
 def delete_user(
     *,
     db: Session = Depends(get_db),
     user_id: uuid.UUID,
-    current_user: models.Employee = Depends(get_current_user)
+    current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
     Delete a staff user. Soft deletes local record, hard deletes Supabase auth record.
@@ -175,10 +187,10 @@ def delete_user(
 
     try:
         supabase_admin.auth.admin.delete_user(str(user_id))
-        
+
         employee.is_active = False
         db.commit()
-        
+
         return {"success": True}
 
     except Exception as e:

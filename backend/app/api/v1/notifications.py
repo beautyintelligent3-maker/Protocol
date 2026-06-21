@@ -1,20 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import Any, List
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
 from app import models, schemas
-from app.database import get_db
 from app.api.deps import get_current_user
+from app.database import get_db
 
 router = APIRouter()
+
 
 @router.get("", response_model=List[schemas.NotificationOut])
 def get_notifications(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: models.Employee = Depends(get_current_user)
+    current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
     Retrieve notifications for the current user.
@@ -29,20 +31,23 @@ def get_notifications(
     )
     return notifications
 
+
 @router.patch("/{notification_id}/read", response_model=schemas.NotificationOut)
 def mark_notification_read(
     *,
     db: Session = Depends(get_db),
     notification_id: UUID,
-    current_user: models.Employee = Depends(get_current_user)
+    current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
     Mark a notification as read.
     """
-    notification = db.query(models.Notification).filter(models.Notification.id == notification_id).first()
+    notification = (
+        db.query(models.Notification).filter(models.Notification.id == notification_id).first()
+    )
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
-    
+
     if notification.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
 

@@ -1,10 +1,13 @@
-from typing import Generator, Optional
+from typing import Generator
+
 # pyrefly: ignore [missing-import]
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
+from app.config import settings
 from app.database import SessionLocal
 from app.models import Employee
-from app.config import settings
+
 
 def get_db() -> Generator:
     try:
@@ -13,26 +16,26 @@ def get_db() -> Generator:
     finally:
         db.close()
 
-import os
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 security = HTTPBearer()
 
+
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)
 ) -> Employee:
     token = credentials.credentials
     jwt_secret = settings.SUPABASE_JWT_SECRET
-    
+
     if not jwt_secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="SUPABASE_JWT_SECRET is not configured on the server",
         )
 
-    from supabase import create_client, Client
+    from supabase import Client, create_client
+
     supabase_url = settings.SUPABASE_URL
     supabase_key = settings.SUPABASE_SERVICE_ROLE_KEY
     supabase: Client = create_client(supabase_url, supabase_key)
@@ -45,23 +48,21 @@ def get_current_user(
                 detail="Invalid authentication token: missing subject",
             )
         user_id_str = user_res.user.id
-        
+
         import uuid
+
         try:
             user_id = uuid.UUID(user_id_str)
         except ValueError:
-             print("Supabase auth failed: malformed subject UUID")
-             raise HTTPException(
+            print("Supabase auth failed: malformed subject UUID")
+            raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token: malformed subject",
             )
-            
+
         # Recreate a pseudo payload for the JIT logic
-        payload = {
-            "email": user_res.user.email,
-            "user_metadata": user_res.user.user_metadata or {}
-        }
-            
+        payload = {"email": user_res.user.email, "user_metadata": user_res.user.user_metadata or {}}
+
     except Exception as e:
         print(f"Supabase auth failed: {str(e)}")
         raise HTTPException(
@@ -79,7 +80,7 @@ def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found in database",
             )
-            
+
         # If user recreated their account, link by email
         existing_user = db.query(Employee).filter(Employee.email == email).first()
         if existing_user:
@@ -91,26 +92,21 @@ def get_current_user(
         else:
             # Create completely new employee record
             from sqlalchemy import text
+
             seq_val = db.execute(text("SELECT nextval('staff_id_seq')")).scalar()
             staff_id_str = str(seq_val).zfill(4)
-            
+
             user_metadata = payload.get("user_metadata", {})
-            name = user_metadata.get("name", email.split('@')[0])
+            name = user_metadata.get("name", email.split("@")[0])
             role = user_metadata.get("role", "executive")
-            
-            user = Employee(
-                id=user_id,
-                staff_id=staff_id_str,
-                email=email,
-                name=name,
-                role=role
-            )
+
+            user = Employee(id=user_id, staff_id=staff_id_str, email=email, name=name, role=role)
             db.add(user)
             db.commit()
             db.refresh(user)
     if not user.is_active:
-         print(f"User with ID {user_id} is deactivated")
-         raise HTTPException(
+        print(f"User with ID {user_id} is deactivated")
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is deactivated",
         )

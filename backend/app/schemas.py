@@ -1,8 +1,11 @@
-from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
-from .models import RoomType, TicketStatus, TicketPriority, MessageType, ApprovalStatus
+
+from pydantic import BaseModel, ConfigDict
+
+from .models import ApprovalStatus, MessageType, TicketPriority, TicketStatus
+
 
 # --- Auth / User Schemas ---
 class UserOut(BaseModel):
@@ -14,8 +17,9 @@ class UserOut(BaseModel):
     room_ids: List[UUID] = []
     has_penalty: bool = False
     penalty_reasons: List[str] = []
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class UserCreate(BaseModel):
     name: str
@@ -24,6 +28,7 @@ class UserCreate(BaseModel):
     role: str
     room_ids: List[UUID]
 
+
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
@@ -31,18 +36,21 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     room_ids: Optional[List[UUID]] = None
 
+
 # --- Room Schemas ---
 class RoomOut(BaseModel):
     id: UUID
     name: str
     description: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 # --- Message Schemas ---
 class MessageCreate(BaseModel):
     content: str
     type: MessageType = MessageType.comment
+
 
 class MessageOut(BaseModel):
     id: UUID
@@ -52,8 +60,9 @@ class MessageOut(BaseModel):
     attachment_type: Optional[str] = None
     created_at: datetime
     author: UserOut
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 # --- Ticket Schemas ---
 class TicketCreate(BaseModel):
@@ -64,11 +73,13 @@ class TicketCreate(BaseModel):
     due_date: Optional[datetime] = None
     assigned_to_id: Optional[UUID] = None
 
+
 class TicketUpdate(BaseModel):
     status: Optional[TicketStatus] = None
     priority: Optional[TicketPriority] = None
     assigned_to_id: Optional[UUID] = None
     add_room_id: Optional[UUID] = None
+
 
 class TicketOut(BaseModel):
     id: UUID
@@ -88,9 +99,11 @@ class TicketOut(BaseModel):
     class Config:
         from_attributes = True
 
+
 class TicketDetailOut(TicketOut):
     messages: List[MessageOut]
     rooms: List[RoomOut]
+
 
 # --- Notification Schemas ---
 class NotificationOut(BaseModel):

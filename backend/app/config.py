@@ -1,12 +1,14 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Union
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str
     SUPABASE_URL: str
     SUPABASE_SERVICE_ROLE_KEY: str
     SUPABASE_JWT_SECRET: str
-    
+
     # Comma-separated strings or lists
     ALLOWED_ORIGINS: Union[str, List[str]] = ["https://tracking-system-for-biw-2vo8.vercel.app"]
     ALLOWED_HOSTS: Union[str, List[str]] = ["*"]
@@ -24,5 +26,6 @@ class Settings(BaseSettings):
         if isinstance(self.ALLOWED_HOSTS, str):
             return [x.strip() for x in self.ALLOWED_HOSTS.split(",") if x.strip()]
         return self.ALLOWED_HOSTS
+
 
 settings = Settings()

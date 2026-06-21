@@ -332,27 +332,34 @@ function DashboardContent() {
                   {selectedTicket.title}
                 </h1>
                 
-                <div className="flex flex-col md:flex-row gap-4 mt-4 mb-2">
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Assignee</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 mb-2">
+                  <div className="flex flex-col">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Assignee</p>
                     <Select 
                       value={selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null) || "unassigned"} 
                       onValueChange={(val) => updateTicketMutation.mutate({ assigned_to_id: val === "unassigned" ? null : val })}
                       disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
                     >
-                      <SelectTrigger className="h-8 text-xs w-full md:w-[180px]">
-                        <div className="truncate">
-                          {(() => {
-                            const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
-                            const foundUser = allUsers?.find((u: any) => u.id === assigneeId);
-                            if (foundUser) {
-                              return `${foundUser.staff_id ? `[${foundUser.staff_id}] ` : ""}${foundUser.name}`;
-                            }
-                            if (selectedTicket.assignee && typeof selectedTicket.assignee === 'object') {
-                              return `${selectedTicket.assignee.staff_id ? `[${selectedTicket.assignee.staff_id}] ` : ""}${selectedTicket.assignee.name}`;
-                            }
-                            return "Unassigned";
-                          })()}
+                      <SelectTrigger className="h-10 bg-slate-50/50 border-slate-200 hover:bg-slate-100 transition-colors w-full rounded-xl">
+                        <div className="truncate flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold shrink-0">
+                            {(() => {
+                              const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
+                              const foundUser = allUsers?.find((u: any) => u.id === assigneeId);
+                              if (foundUser) return foundUser.name.charAt(0).toUpperCase();
+                              if (selectedTicket.assignee && typeof selectedTicket.assignee === 'object') return selectedTicket.assignee.name.charAt(0).toUpperCase();
+                              return "?";
+                            })()}
+                          </div>
+                          <span className="text-sm font-medium text-slate-700">
+                            {(() => {
+                              const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
+                              const foundUser = allUsers?.find((u: any) => u.id === assigneeId);
+                              if (foundUser) return `${foundUser.staff_id ? `[${foundUser.staff_id}] ` : ""}${foundUser.name}`;
+                              if (selectedTicket.assignee && typeof selectedTicket.assignee === 'object') return `${selectedTicket.assignee.staff_id ? `[${selectedTicket.assignee.staff_id}] ` : ""}${selectedTicket.assignee.name}`;
+                              return "Unassigned";
+                            })()}
+                          </span>
                         </div>
                       </SelectTrigger>
                       <SelectContent>
@@ -362,7 +369,7 @@ function DashboardContent() {
                           return allUsers?.filter((u: any) => 
                             selectedTicket.rooms?.some((r: any) => u.room_ids?.includes(r.id)) || u.id === assigneeId
                           ).map((u: any) => (
-                            <SelectItem key={u.id} value={u.id} className="text-xs">
+                            <SelectItem key={u.id} value={u.id} className="text-sm">
                               {u.staff_id ? `[${u.staff_id}] ` : ""}{u.name} ({u.role.replace('_', ' ')})
                             </SelectItem>
                           ));
@@ -371,22 +378,22 @@ function DashboardContent() {
                     </Select>
                   </div>
 
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Escalate to Department</p>
+                  <div className="flex flex-col">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Escalate</p>
                     <Select 
                       value="placeholder"
                       onValueChange={(val) => updateTicketMutation.mutate({ add_room_id: val })}
                       disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
                     >
-                      <SelectTrigger className="h-8 text-xs w-full md:w-[180px]">
-                        <SelectValue placeholder="Escalate..." />
+                      <SelectTrigger className="h-10 bg-slate-50/50 border-slate-200 hover:bg-slate-100 transition-colors w-full rounded-xl">
+                        <SelectValue placeholder="Select department..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="placeholder" disabled>Escalate...</SelectItem>
+                        <SelectItem value="placeholder" disabled>Select department...</SelectItem>
                         {allRooms?.filter((r: any) => 
                           r.type !== 'branch' && !selectedTicket.rooms?.some((tr: any) => tr.id === r.id)
                         ).map((r: any) => (
-                          <SelectItem key={r.id} value={r.id} className="text-xs">
+                          <SelectItem key={r.id} value={r.id} className="text-sm">
                             {r.name}
                           </SelectItem>
                         ))}
@@ -410,53 +417,66 @@ function DashboardContent() {
                 </div>
               </div>
               
-              <div className="p-6 bg-slate-50">
+              <div className="p-4 md:p-6 bg-slate-50">
                 <div className="max-w-4xl mx-auto">
-                  {/* Original Description */}
-                  <div className="mb-8 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3 border-b border-slate-100 pb-2">Description</h3>
-                    <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
-                      {selectedTicket.description}
-                    </p>
-                  </div>
-                  
-                  {/* Thread Area */}
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500 mb-4 uppercase tracking-wider">
-                    <MessageSquare className="w-4 h-4" />
-                    Thread
-                  </div>
-                  
-                  <div className="space-y-4 mb-8">
-                    {selectedTicket.messages?.map((msg: any) => (
-                      msg.type === "status_change" ? (
-                        <div key={msg.id} className="flex justify-center my-4">
-                          <span className="text-xs font-medium text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
-                            {msg.author.name} {msg.content.toLowerCase()}
-                          </span>
+                  {/* Chat Area */}
+                  <div className="space-y-6 mb-8 mt-2 px-2 md:px-0">
+                    
+                    {/* Description as the first message */}
+                    <div className={`flex w-full ${selectedTicket.creator?.id === currentUser?.id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`flex flex-col max-w-[85%] md:max-w-[75%] ${selectedTicket.creator?.id === currentUser?.id ? 'items-end' : 'items-start'}`}>
+                        <span className="text-[10px] font-medium text-slate-400 mb-1 px-1">
+                          {selectedTicket.creator?.name} • {new Date(selectedTicket.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                        <div className={`px-4 py-3 shadow-sm ${selectedTicket.creator?.id === currentUser?.id ? 'bg-indigo-500 text-white rounded-2xl rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-sm'}`}>
+                          <p className={`text-[15px] whitespace-pre-wrap leading-relaxed ${selectedTicket.creator?.id === currentUser?.id ? 'text-white' : 'text-slate-800'}`}>
+                            {selectedTicket.description}
+                          </p>
                         </div>
-                      ) : (
-                        <div key={msg.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-sm text-slate-900">{msg.author.name}</span>
-                            <span className="text-xs text-slate-400">{new Date(msg.created_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  
+                    {selectedTicket.messages?.map((msg: any) => {
+                      if (msg.type === "status_change") {
+                        return (
+                          <div key={msg.id} className="flex justify-center my-6">
+                            <span className="text-[11px] font-medium text-slate-400 bg-slate-200/50 px-4 py-1.5 rounded-full">
+                              {msg.author.name} {msg.content.toLowerCase()}
+                            </span>
                           </div>
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{msg.content}</p>
-                          {msg.attachment_name && (
-                            <div className="mt-3">
-                              <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/tickets/messages/${msg.id}/attachment`} target="_blank" rel="noreferrer" className="inline-flex items-center px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors border border-indigo-100">
-                                <Paperclip className="w-3.5 h-3.5 mr-2" />
-                                {msg.attachment_name}
-                                <Download className="w-3.5 h-3.5 ml-2 opacity-70" />
-                              </a>
+                        );
+                      }
+
+                      const isMe = msg.author.id === currentUser?.id;
+
+                      return (
+                        <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`flex flex-col max-w-[85%] md:max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
+                            <span className="text-[10px] font-medium text-slate-400 mb-1 px-1">
+                              {msg.author.name} • {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                            <div className={`px-4 py-3 shadow-sm ${isMe ? 'bg-indigo-500 text-white rounded-2xl rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-sm'}`}>
+                              <p className={`text-[15px] whitespace-pre-wrap leading-relaxed ${isMe ? 'text-white' : 'text-slate-800'}`}>
+                                {msg.content}
+                              </p>
+                              {msg.attachment_name && (
+                                <div className="mt-3">
+                                  <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/tickets/messages/${msg.id}/attachment`} target="_blank" rel="noreferrer" className={`inline-flex items-center px-3 py-2 rounded-xl text-xs font-medium transition-colors border ${isMe ? 'bg-indigo-600 border-indigo-400 text-white hover:bg-indigo-700' : 'bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100'}`}>
+                                    <Paperclip className="w-3.5 h-3.5 mr-2" />
+                                    {msg.attachment_name}
+                                    <Download className="w-3.5 h-3.5 ml-2 opacity-70" />
+                                  </a>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
-                      )
-                    ))}
+                      );
+                    })}
                     
                     {selectedTicket.messages?.length === 0 && (
-                      <div className="text-center text-slate-400 text-sm py-4">
-                        No messages yet. Start the conversation!
+                      <div className="text-center text-slate-400 text-sm py-8">
+                        No replies yet. Be the first to respond!
                       </div>
                     )}
                   </div>

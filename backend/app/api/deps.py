@@ -65,11 +65,43 @@ def get_current_user(
 
     user = db.query(Employee).filter(Employee.id == user_id).first()
     if not user:
-        print(f"User with ID {user_id} not found in database")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found in database",
-        )
+        # Just-in-time provisioning / relinking
+        email = payload.get("email")
+        if not email:
+            print(f"User with ID {user_id} not found in database and no email in JWT")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found in database",
+            )
+            
+        # If user recreated their account, link by email
+        existing_user = db.query(Employee).filter(Employee.email == email).first()
+        if existing_user:
+            # Update their ID to the new Supabase Auth UUID
+            existing_user.id = user_id
+            db.commit()
+            db.refresh(existing_user)
+            user = existing_user
+        else:
+            # Create completely new employee record
+            from sqlalchemy import text
+            seq_val = db.execute(text("SELECT nextval('staff_id_seq')")).scalar()
+            staff_id_str = str(seq_val).zfill(4)
+            
+            user_metadata = payload.get("user_metadata", {})
+            name = user_metadata.get("name", email.split('@')[0])
+            role = user_metadata.get("role", "executive")
+            
+            user = Employee(
+                id=user_id,
+                staff_id=staff_id_str,
+                email=email,
+                name=name,
+                role=role
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
     if not user.is_active:
          print(f"User with ID {user_id} is deactivated")
          raise HTTPException(

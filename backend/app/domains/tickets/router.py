@@ -298,19 +298,45 @@ def update_ticket(
         db.add(system_msg)
         ticket.priority = ticket_in.priority
 
-    if ticket_in.assigned_to_id is not None and ticket_in.assigned_to_id != ticket.assigned_to_id:
-        assignee = (
-            db.query(models.Employee).filter(models.Employee.id == ticket_in.assigned_to_id).first()
-        )
-        if assignee:
-            system_msg = models.Message(
-                ticket_id=ticket.id,
-                author_id=current_user.id,
-                content=f"Assigned ticket to {assignee.name}",
-                type=models.MessageType.status_update,
+    if "assigned_to_id" in ticket_in.model_fields_set:
+        if ticket_in.assigned_to_id is None:
+            if ticket.assigned_to_id is not None:
+                system_msg = models.Message(
+                    ticket_id=ticket.id,
+                    author_id=current_user.id,
+                    content="Unassigned ticket",
+                    type=models.MessageType.status_update,
+                )
+                db.add(system_msg)
+            ticket.assigned_to_id = None
+        elif ticket_in.assigned_to_id != ticket.assigned_to_id:
+            assignee = (
+                db.query(models.Employee).filter(models.Employee.id == ticket_in.assigned_to_id).first()
             )
-            db.add(system_msg)
-            ticket.assigned_to_id = assignee.id
+            if assignee:
+                system_msg = models.Message(
+                    ticket_id=ticket.id,
+                    author_id=current_user.id,
+                    content=f"Assigned ticket to {assignee.name}",
+                    type=models.MessageType.status_update,
+                )
+                db.add(system_msg)
+                ticket.assigned_to_id = assignee.id
+
+    if "due_date" in ticket_in.model_fields_set and ticket_in.due_date != ticket.due_date:
+        ticket.due_date = ticket_in.due_date
+        if ticket_in.due_date:
+            due_str = ticket_in.due_date.strftime("%d %b %Y, %H:%M")
+            content = f"Due date set to {due_str}"
+        else:
+            content = "Removed due date"
+        system_msg = models.Message(
+            ticket_id=ticket.id,
+            author_id=current_user.id,
+            content=content,
+            type=models.MessageType.status_update,
+        )
+        db.add(system_msg)
 
     if ticket_in.add_room_id is not None:
         # Check if room is already linked

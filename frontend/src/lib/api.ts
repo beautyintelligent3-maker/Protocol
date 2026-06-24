@@ -128,6 +128,13 @@ export async function fetchAllRooms() {
   return fetchApi(`/rooms/all`);
 }
 
+export async function createRoom(roomData: { name: string; type: string }) {
+  return fetchApi('/rooms', {
+    method: 'POST',
+    body: JSON.stringify(roomData),
+  });
+}
+
 export async function updateUser(userId: string, userData: any) {
   return fetchApi(`/users/${userId}`, {
     method: "PATCH",

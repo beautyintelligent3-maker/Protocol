@@ -1,87 +1,103 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchTickets, fetchTicketDetails, postMessage, updateTicket, fetchAllUsers, fetchAllRooms, approveTicket, fetchCurrentUser } from "@/lib/api";
+import {
+  fetchTickets, fetchTicketDetails, postMessage, updateTicket,
+  fetchAllUsers, fetchAllRooms, approveTicket, fetchCurrentUser,
+} from "@/lib/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
-import { Loader2, Ticket, MessageSquare, Send, CheckCircle2, AlertCircle, ArrowLeft, Paperclip, Download, X, Search, Calendar } from "lucide-react";
+import {
+  Loader2, Ticket, CheckCircle2, AlertCircle, ArrowLeft,
+  Paperclip, Download, X, Search, Activity, RotateCcw,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CreateTicketDialog } from "@/components/CreateTicketDialog";
 import { Input } from "@/components/ui/input";
+import { CreateTicketDialog } from "@/components/CreateTicketDialog";
 import { supabase } from "@/lib/supabase";
 import { getSlug } from "./layout";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+function toLocalDatetimeValue(utcDate: string): string {
+  const d = new Date(utcDate);
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0"),
+  ].join("-") + "T" + [
+    String(d.getHours()).padStart(2, "0"),
+    String(d.getMinutes()).padStart(2, "0"),
+  ].join(":");
+}
+
+function formatDateTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function PropLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+      {children}
+    </p>
+  );
+}
 
 function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const roomSlug = searchParams.get("room");
   const roomFallbackId = searchParams.get("room_id");
   const ticketId = searchParams.get("ticket_id");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
+
   const [filterStaffId, setFilterStaffId] = useState("");
   const [filterStatus, setFilterStatus] = useState<"active" | "resolved">("active");
   const [comment, setComment] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dueDate, setDueDate] = useState("");
+
   const queryClient = useQueryClient();
 
-  // Supabase Realtime for Tickets and Messages
   useEffect(() => {
-    const channel = supabase.channel('dashboard_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'messages' },
-        () => {
-          if (ticketId) {
-            queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tickets' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["tickets"] });
-          if (ticketId) {
-            queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
-          }
-        }
-      )
+    const channel = supabase
+      .channel("dashboard_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+        if (ticketId) queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "tickets" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        if (ticketId) queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [ticketId, queryClient]);
-  const { data: allRooms } = useQuery({
-    queryKey: ["allRooms"],
-    queryFn: fetchAllRooms,
-  });
 
-  const roomId = roomSlug ? allRooms?.find((r: any) => getSlug(r.name) === roomSlug)?.id : roomFallbackId;
-  const currentRoomName = roomId ? allRooms?.find((r: any) => r.id === roomId)?.name : "All Tickets";
+  const { data: allRooms } = useQuery({ queryKey: ["allRooms"], queryFn: fetchAllRooms });
+  const roomId = roomSlug
+    ? allRooms?.find((r: any) => getSlug(r.name) === roomSlug)?.id
+    : roomFallbackId;
 
   const { data: fetchedTickets, isLoading, error } = useQuery({
     queryKey: ["tickets", roomId, filterStaffId],
-    queryFn: () => fetchTickets({
-      room_id: roomId || undefined,
-      assignee_staff_id: filterStaffId || undefined,
-    }),
+    queryFn: () => fetchTickets({ room_id: roomId || undefined, assignee_staff_id: filterStaffId || undefined }),
     enabled: roomSlug ? !!roomId : true,
   });
 
-  const tickets = fetchedTickets ? [...fetchedTickets]
-    .filter((t: any) => filterStatus === "resolved" ? t.status === "resolved" : t.status !== "resolved")
-    .sort((a, b) => {
-      if (sortBy === "newest") {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    }) : [];
+  const tickets = fetchedTickets
+    ? [...fetchedTickets]
+        .filter((t: any) =>
+          filterStatus === "resolved" ? t.status === "resolved" : t.status !== "resolved"
+        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    : [];
 
   const { data: selectedTicket, isLoading: isTicketLoading, error: ticketError } = useQuery({
     queryKey: ["ticket", ticketId],
@@ -89,13 +105,18 @@ function DashboardContent() {
     enabled: !!ticketId,
   });
 
+  useEffect(() => {
+    setDueDate(selectedTicket?.due_date ? toLocalDatetimeValue(selectedTicket.due_date) : "");
+  }, [selectedTicket?.id]);
+
   const postMessageMutation = useMutation({
-    mutationFn: (data: { content: string, file?: File | null }) => postMessage(ticketId as string, data.content, "comment", data.file),
+    mutationFn: (data: { content: string; file?: File | null }) =>
+      postMessage(ticketId as string, data.content, "comment", data.file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
       setComment("");
       setSelectedFile(null);
-    }
+    },
   });
 
   const updateTicketMutation = useMutation({
@@ -103,19 +124,11 @@ function DashboardContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    }
+    },
   });
 
-  const { data: allUsers } = useQuery({
-    queryKey: ["allUsers"],
-    queryFn: fetchAllUsers,
-  });
-
-  const { data: currentUser } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: fetchCurrentUser,
-  });
-  
+  const { data: allUsers } = useQuery({ queryKey: ["allUsers"], queryFn: fetchAllUsers });
+  const { data: currentUser } = useQuery({ queryKey: ["currentUser"], queryFn: fetchCurrentUser });
   const currentUserRole = currentUser?.role || "";
 
   const approveTicketMutation = useMutation({
@@ -123,92 +136,141 @@ function DashboardContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
-    }
+    },
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "open": return "bg-blue-100 text-blue-800";
-      case "in_progress": return "bg-amber-100 text-amber-800";
-      case "approved": return "bg-emerald-100 text-emerald-800";
-      case "resolved": return "bg-slate-100 text-slate-800";
-      default: return "bg-slate-100 text-slate-800";
+      case "open": return "bg-blue-50 text-blue-700 border-blue-200";
+      case "in_progress": return "bg-amber-50 text-amber-700 border-amber-200";
+      case "approved": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "resolved": return "bg-slate-100 text-slate-500 border-slate-200";
+      default: return "bg-slate-100 text-slate-500 border-slate-200";
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityDot = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-500";
+      case "medium": return "bg-amber-500";
+      case "low": return "bg-green-500";
+      default: return "bg-slate-400";
+    }
+  };
+
+  const getPriorityTextColor = (priority: string) => {
     switch (priority) {
       case "high": return "text-red-600";
       case "medium": return "text-amber-600";
       case "low": return "text-green-600";
-      default: return "text-slate-600";
+      default: return "text-slate-500";
     }
   };
 
+  const isOverdue =
+    selectedTicket?.due_date &&
+    new Date(selectedTicket.due_date) < new Date() &&
+    selectedTicket.status !== "resolved";
+
+  const handleDueDateBlur = () => {
+    if (!selectedTicket) return;
+    const currentVal = selectedTicket.due_date
+      ? toLocalDatetimeValue(selectedTicket.due_date)
+      : "";
+    if (dueDate !== currentVal) {
+      updateTicketMutation.mutate({
+        due_date: dueDate ? new Date(dueDate).toISOString() : null,
+      });
+    }
+  };
+
+  const assigneeId =
+    selectedTicket?.assignee?.id ||
+    (typeof selectedTicket?.assignee === "string" ? selectedTicket.assignee : null) ||
+    null;
+
+  const resolvedAssigneeName = (() => {
+    if (!assigneeId) return null;
+    const found = allUsers?.find((u: any) => u.id === assigneeId);
+    if (found) return `${found.staff_id ? `[${found.staff_id}] ` : ""}${found.name}`;
+    if (selectedTicket?.assignee && typeof selectedTicket.assignee === "object") {
+      return selectedTicket.assignee.name;
+    }
+    return null;
+  })();
+
+  const goBack = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("ticket_id");
+    router.push(`/dashboard?${params.toString()}`);
+  };
+
+  const roomName = roomId
+    ? allRooms?.find((r: any) => r.id === roomId)?.name
+    : "All Tickets";
+
   return (
     <div className="flex flex-1 h-full overflow-hidden bg-white">
-      {/* Middle Column (Feed) */}
-      <div className={`flex flex-col border-r border-slate-200 ${ticketId ? 'w-1/3 min-w-[320px] max-w-sm hidden md:flex' : 'w-full'}`}>
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+
+      {/* ── LEFT: Ticket List ── */}
+      <div
+        className={`flex flex-col border-r border-slate-200 flex-shrink-0 ${
+          ticketId ? "w-[300px] hidden md:flex" : "w-full"
+        }`}
+      >
+        {/* List header */}
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Ticket className="w-5 h-5 text-slate-500" />
-              Tickets
-            </h2>
-            {roomId && (
-              <Badge variant="outline" className="text-xs font-normal text-slate-500">
-                Filtered
-              </Badge>
-            )}
+            <Ticket className="w-4 h-4 text-slate-400" />
+            <h2 className="text-sm font-semibold text-slate-800 truncate">{roomName}</h2>
           </div>
           {["owner", "manager", "hr", "it_team"].includes(currentUserRole) && (
             <CreateTicketDialog roomId={roomId} />
           )}
         </div>
 
-        <div className="p-4 border-b border-slate-200 space-y-3 bg-slate-50">
+        {/* Filters */}
+        <div className="px-3 py-2.5 border-b border-slate-200 space-y-2 bg-slate-50">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Search by Staff ID (e.g. 0005)" 
-              value={filterStaffId} 
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              placeholder="Search by Staff ID"
+              value={filterStaffId}
               onChange={(e) => setFilterStaffId(e.target.value)}
-              className="pl-9 bg-white"
+              className="pl-8 h-8 bg-white text-sm border-slate-200"
             />
           </div>
-          <div className="flex bg-slate-200/50 p-1 rounded-lg">
-            <button 
-              onClick={() => setFilterStatus("active")}
-              className={`flex-1 text-sm py-1.5 font-medium rounded-md transition-colors ${filterStatus === "active" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-            >
-              Active
-            </button>
-            <button 
-              onClick={() => setFilterStatus("resolved")}
-              className={`flex-1 text-sm py-1.5 font-medium rounded-md transition-colors ${filterStatus === "resolved" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-            >
-              Resolved
-            </button>
+          <div className="flex bg-slate-200/60 p-0.5 rounded-md gap-0.5">
+            {(["active", "resolved"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilterStatus(f)}
+                className={`flex-1 text-xs py-1.5 font-medium rounded transition-colors capitalize ${
+                  filterStatus === f
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
           </div>
         </div>
-        
+
+        {/* Ticket list */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="p-8 flex justify-center text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin" />
+            <div className="p-8 flex justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
             </div>
           ) : error ? (
-            <div className="p-8 text-center text-red-500 text-sm">
-              Failed to load tickets.
-            </div>
-          ) : tickets?.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
-              No tickets found in this room.
-            </div>
+            <p className="p-4 text-center text-red-500 text-xs">Failed to load tickets.</p>
+          ) : tickets.length === 0 ? (
+            <p className="p-8 text-center text-slate-400 text-sm">No tickets found.</p>
           ) : (
-            <div className="divide-y divide-slate-200">
-              {tickets?.map((ticket: any) => (
-                <div
+            <div className="divide-y divide-slate-100">
+              {tickets.map((ticket: any) => (
+                <button
                   key={ticket.id}
                   onClick={() => {
                     const params = new URLSearchParams(searchParams.toString());
@@ -217,346 +279,495 @@ function DashboardContent() {
                     else if (roomId) params.set("room_id", roomId);
                     router.push(`/dashboard?${params.toString()}`);
                   }}
-                  className={`p-4 cursor-pointer transition-all duration-200 hover:bg-slate-50 hover:shadow-sm hover:z-10 relative hover:-translate-y-0.5 active:scale-[0.98] ${
-                    ticket.id === ticketId ? "bg-indigo-50/60 shadow-[inset_4px_0_0_0_#6366f1]" : ""
+                  className={`w-full text-left p-3.5 transition-colors hover:bg-slate-50 relative ${
+                    ticket.id === ticketId
+                      ? "bg-indigo-50/50 shadow-[inset_3px_0_0_0_#6366f1]"
+                      : ""
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-medium uppercase tracking-wider flex items-center gap-1">
-                      <span className={`w-2 h-2 rounded-full ${getPriorityColor(ticket.priority).replace('text-', 'bg-')}`} />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${getPriorityTextColor(ticket.priority)}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${getPriorityDot(ticket.priority)}`} />
                       {ticket.priority}
                     </span>
-                    <div className="flex gap-1">
-                      {ticket.approval_status === "pending" && (
-                        <Badge variant="outline" className="text-[10px] uppercase font-bold text-amber-500 border-amber-200">
-                          Pending
-                        </Badge>
-                      )}
-                      <Badge variant="secondary" className={`text-[10px] uppercase font-bold border-none ${getStatusColor(ticket.status)}`}>
-                        {ticket.status.replace("_", " ")}
-                      </Badge>
-                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={`text-[10px] uppercase font-bold border-none px-1.5 py-0.5 ${getStatusColor(ticket.status)}`}
+                    >
+                      {ticket.status.replace("_", " ")}
+                    </Badge>
                   </div>
-                  <h3 className="font-semibold text-slate-900 text-sm mb-1 leading-tight line-clamp-2">
+                  <h3 className="font-medium text-slate-900 text-sm leading-snug line-clamp-2 mb-2">
                     {ticket.title}
                   </h3>
-                  <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
-                    <span className="truncate flex-1">
-                      {ticket.creator.name}
-                    </span>
-                    <span className="flex-shrink-0">
-                      {new Date(ticket.created_at).toLocaleDateString()}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400 truncate">{ticket.creator.name}</span>
+                    <span className="text-xs text-slate-400 shrink-0 ml-2">
+                      {new Date(ticket.created_at).toLocaleDateString("en-GB", {
+                        day: "2-digit", month: "short",
+                      })}
                     </span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* Right Panel (Detail View) */}
+      {/* ── RIGHT: Ticket Detail ── */}
       {ticketId ? (
-        <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden animate-in slide-in-from-right-8 fade-in duration-300">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {isTicketLoading ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-              <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-500" />
-              <p>Loading ticket details...</p>
+            <div className="flex-1 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 animate-spin text-indigo-500" />
             </div>
           ) : ticketError ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-red-500 p-8 text-center">
-              <AlertCircle className="w-12 h-12 mb-4 text-red-400" />
-              <p className="text-lg font-semibold text-slate-900">Failed to load ticket</p>
-              <p className="text-sm text-slate-500 mt-2 max-w-md">
-                {(ticketError as Error).message || "An unexpected error occurred. The ticket may have been deleted or you don't have permission to view it."}
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+              <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
+              <p className="font-semibold text-slate-800">Failed to load ticket</p>
+              <p className="text-sm text-slate-500 mt-1">
+                {(ticketError as Error).message}
               </p>
             </div>
           ) : selectedTicket ? (
-            <div className="flex-1 overflow-y-auto bg-slate-50 relative">
-              <div className="p-4 md:p-6 bg-white border-b border-slate-200">
-                {/* Mobile Back Button */}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="md:hidden mb-4 -ml-2 text-slate-500 flex items-center gap-2 w-fit hover:bg-slate-100"
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    params.delete('ticket_id');
-                    router.push(`/dashboard?${params.toString()}`);
-                  }}
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Tickets
-                </Button>
+            <div className="flex-1 flex overflow-hidden">
 
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    {selectedTicket.approval_status === "pending" && (
-                      <Badge variant="outline" className="text-amber-500 border-amber-200 uppercase text-xs tracking-wider">
-                        Pending Approval
-                      </Badge>
-                    )}
-                    <Badge variant="secondary" className={`${getStatusColor(selectedTicket.status)} uppercase text-xs tracking-wider border-none`}>
-                      {selectedTicket.status.replace("_", " ")}
-                    </Badge>
-                    <span className={`text-sm font-medium uppercase flex items-center gap-1 ${getPriorityColor(selectedTicket.priority)}`}>
-                      Priority: {selectedTicket.priority}
-                    </span>
-                    {selectedTicket.due_date && (
-                      <span className={`text-sm font-medium flex items-center gap-1 ${new Date(selectedTicket.due_date) < new Date() && selectedTicket.status !== "resolved" ? "text-red-600 animate-pulse" : "text-slate-500"}`}>
-                        <Calendar className="w-4 h-4" />
-                        Due: {new Date(selectedTicket.due_date).toLocaleString()}
-                        {new Date(selectedTicket.due_date) < new Date() && selectedTicket.status !== "resolved" && " (OVERDUE)"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    {selectedTicket.approval_status === "pending" && currentUserRole === "owner" && (
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="bg-amber-500 hover:bg-amber-600 text-white"
-                        onClick={() => approveTicketMutation.mutate()}
-                        disabled={approveTicketMutation.isPending}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Approve
-                      </Button>
-                    )}
-                    {selectedTicket.status !== "resolved" ? (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                        onClick={() => updateTicketMutation.mutate({ status: "resolved" })}
-                        disabled={updateTicketMutation.isPending}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Mark Resolved
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-amber-600 border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-                        onClick={() => updateTicketMutation.mutate({ status: "open" })}
-                        disabled={updateTicketMutation.isPending}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Re-open Ticket
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                  {selectedTicket.title}
-                </h1>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 mb-2">
-                  <div className="flex flex-col">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Assignee</p>
-                    <Select 
-                      value={selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null) || "unassigned"} 
-                      onValueChange={(val) => updateTicketMutation.mutate({ assigned_to_id: val === "unassigned" ? null : val })}
-                      disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
-                    >
-                      <SelectTrigger className="h-10 bg-slate-50/50 border-slate-200 hover:bg-slate-100 transition-colors w-full rounded-xl">
-                        <div className="truncate flex items-center gap-2">
-                          <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold shrink-0">
-                            {(() => {
-                              const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
-                              const foundUser = allUsers?.find((u: any) => u.id === assigneeId);
-                              if (foundUser) return foundUser.name.charAt(0).toUpperCase();
-                              if (selectedTicket.assignee && typeof selectedTicket.assignee === 'object') return selectedTicket.assignee.name.charAt(0).toUpperCase();
-                              return "?";
-                            })()}
-                          </div>
-                          <span className="text-sm font-medium text-slate-700">
-                            {(() => {
-                              const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
-                              const foundUser = allUsers?.find((u: any) => u.id === assigneeId);
-                              if (foundUser) return `${foundUser.staff_id ? `[${foundUser.staff_id}] ` : ""}${foundUser.name}`;
-                              if (selectedTicket.assignee && typeof selectedTicket.assignee === 'object') return `${selectedTicket.assignee.staff_id ? `[${selectedTicket.assignee.staff_id}] ` : ""}${selectedTicket.assignee.name}`;
-                              return "Unassigned";
-                            })()}
-                          </span>
-                        </div>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {(() => {
-                          const assigneeId = selectedTicket.assignee?.id || selectedTicket.assigned_to_id || (typeof selectedTicket.assignee === "string" ? selectedTicket.assignee : null);
-                          return allUsers?.filter((u: any) => 
-                            selectedTicket.rooms?.some((r: any) => u.room_ids?.includes(r.id)) || u.id === assigneeId
-                          ).map((u: any) => (
-                            <SelectItem key={u.id} value={u.id} className="text-sm">
-                              {u.staff_id ? `[${u.staff_id}] ` : ""}{u.name} ({u.role.replace('_', ' ')})
-                            </SelectItem>
-                          ));
-                        })()}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              {/* ── MAIN COLUMN ── */}
+              <div className="flex-1 overflow-y-auto flex flex-col min-w-0">
 
-                  <div className="flex flex-col">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">Escalate</p>
-                    <Select 
-                      value="placeholder"
-                      onValueChange={(val) => updateTicketMutation.mutate({ add_room_id: val })}
-                      disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
-                    >
-                      <SelectTrigger className="h-10 bg-slate-50/50 border-slate-200 hover:bg-slate-100 transition-colors w-full rounded-xl">
-                        <SelectValue placeholder="Select department..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="placeholder" disabled>Select department...</SelectItem>
-                        {allRooms?.filter((r: any) => 
-                          !selectedTicket.rooms?.some((tr: any) => tr.id === r.id)
-                        ).map((r: any) => (
-                          <SelectItem key={r.id} value={r.id} className="text-sm">
-                            {r.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                {/* Header */}
+                <div className="bg-white border-b border-slate-200 px-5 py-4 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="md:hidden mb-3 -ml-1 text-slate-500 h-8 text-xs"
+                    onClick={goBack}
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+                    Back
+                  </Button>
 
-                <div className="flex flex-wrap gap-1 mt-3 mb-4">
-                  {selectedTicket.rooms?.map((room: any) => (
-                    <Badge key={room.id} variant="secondary" className="bg-slate-100 text-slate-600 border border-slate-200">
-                      #{room.name}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                  <span>Opened by <strong className="text-slate-700">{selectedTicket.creator.name}</strong></span>
-                  <span>•</span>
-                  <span>{new Date(selectedTicket.created_at).toLocaleString()}</span>
-                </div>
-              </div>
-              
-              <div className="p-4 md:p-6 bg-slate-50">
-                <div className="max-w-4xl mx-auto">
-                  {/* Chat Area */}
-                  <div className="space-y-6 mb-8 mt-2 px-2 md:px-0">
-                    
-                    {/* Description as the first message */}
-                    <div className={`flex w-full ${selectedTicket.creator?.id === currentUser?.id ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex flex-col max-w-[85%] md:max-w-[75%] ${selectedTicket.creator?.id === currentUser?.id ? 'items-end' : 'items-start'}`}>
-                        <span className="text-[10px] font-medium text-slate-400 mb-1 px-1">
-                          {selectedTicket.creator?.name} • {new Date(selectedTicket.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
-                        <div className={`px-4 py-3 shadow-sm ${selectedTicket.creator?.id === currentUser?.id ? 'bg-indigo-500 text-white rounded-2xl rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-sm'}`}>
-                          <p className={`text-[15px] whitespace-pre-wrap leading-relaxed ${selectedTicket.creator?.id === currentUser?.id ? 'text-white' : 'text-slate-800'}`}>
-                            {selectedTicket.description}
-                          </p>
-                        </div>
+                  <div className="flex items-start gap-3 justify-between flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      {/* Status row */}
+                      <div className="flex items-center flex-wrap gap-1.5 mb-2.5">
+                        <Badge
+                          className={`text-[10px] uppercase tracking-widest font-bold border px-2 py-0.5 ${getStatusColor(selectedTicket.status)}`}
+                        >
+                          {selectedTicket.status.replace("_", " ")}
+                        </Badge>
+                        {selectedTicket.approval_status === "pending" && (
+                          <Badge className="text-[10px] uppercase tracking-widest font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5">
+                            Pending Approval
+                          </Badge>
+                        )}
+                        {isOverdue && (
+                          <Badge className="text-[10px] uppercase tracking-widest font-bold bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 animate-pulse">
+                            Overdue
+                          </Badge>
+                        )}
                       </div>
+                      <h1 className="text-lg font-bold text-slate-900 leading-snug">
+                        {selectedTicket.title}
+                      </h1>
                     </div>
-                  
+
+                    {/* Action buttons */}
+                    <div className="flex gap-2 shrink-0">
+                      {selectedTicket.approval_status === "pending" &&
+                        currentUserRole === "owner" && (
+                          <Button
+                            size="sm"
+                            className="bg-amber-500 hover:bg-amber-600 text-white h-8 text-xs"
+                            onClick={() => approveTicketMutation.mutate()}
+                            disabled={approveTicketMutation.isPending}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                            Approve
+                          </Button>
+                        )}
+                      {selectedTicket.status !== "resolved" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-8 text-xs"
+                          onClick={() => updateTicketMutation.mutate({ status: "resolved" })}
+                          disabled={updateTicketMutation.isPending}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                          Mark Resolved
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-amber-600 border-amber-200 hover:bg-amber-50 h-8 text-xs"
+                          onClick={() => updateTicketMutation.mutate({ status: "open" })}
+                          disabled={updateTicketMutation.isPending}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                          Re-open
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="bg-[#f7f6f3] border-b border-slate-200 px-5 py-4 flex-shrink-0">
+                  <PropLabel>Description</PropLabel>
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedTicket.description}
+                  </p>
+                </div>
+
+                {/* Activity Feed */}
+                <div className="bg-[#f7f6f3] flex-1 px-5 py-4">
+                  <PropLabel>
+                    <span className="flex items-center gap-1.5">
+                      <Activity className="w-3 h-3" />
+                      Activity
+                    </span>
+                  </PropLabel>
+
+                  {/* Timeline */}
+                  <div className="relative pl-6 border-l-2 border-slate-200 ml-2 mt-3 space-y-0">
+
+                    {/* Ticket opened event */}
+                    <div className="flex items-center gap-3 py-1.5 -ml-[19px]">
+                      <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center shrink-0 ring-2 ring-white">
+                        {selectedTicket.creator?.name?.charAt(0)}
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        <span className="font-semibold text-slate-700">
+                          {selectedTicket.creator?.name}
+                        </span>{" "}
+                        opened this ticket
+                      </span>
+                      <span className="text-xs text-slate-400 ml-auto shrink-0">
+                        {formatDateTime(selectedTicket.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Messages */}
                     {selectedTicket.messages?.map((msg: any) => {
-                      if (msg.type === "status_change") {
+                      if (msg.type === "status_update" || msg.type === "approval") {
                         return (
-                          <div key={msg.id} className="flex justify-center my-6">
-                            <span className="text-[11px] font-medium text-slate-400 bg-slate-200/50 px-4 py-1.5 rounded-full">
-                              {msg.author.name} {msg.content.toLowerCase()}
+                          <div key={msg.id} className="flex items-center gap-3 py-1.5 -ml-[13px]">
+                            <div className="w-4 h-4 rounded-full bg-white border-2 border-slate-300 flex items-center justify-center shrink-0">
+                              <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                            </div>
+                            <span className="text-xs text-slate-500">
+                              <span className="font-semibold text-slate-600">
+                                {msg.author.name}
+                              </span>{" "}
+                              {msg.content.toLowerCase()}
+                            </span>
+                            <span className="text-xs text-slate-400 ml-auto shrink-0">
+                              {formatDateTime(msg.created_at)}
                             </span>
                           </div>
                         );
                       }
 
-                      const isMe = msg.author.id === currentUser?.id;
-
                       return (
-                        <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`flex flex-col max-w-[85%] md:max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
-                            <span className="text-[10px] font-medium text-slate-400 mb-1 px-1">
-                              {msg.author.name} • {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </span>
-                            <div className={`px-4 py-3 shadow-sm ${isMe ? 'bg-indigo-500 text-white rounded-2xl rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tl-sm'}`}>
-                              <p className={`text-[15px] whitespace-pre-wrap leading-relaxed ${isMe ? 'text-white' : 'text-slate-800'}`}>
-                                {msg.content}
-                              </p>
-                              {msg.attachment_name && (
-                                <div className="mt-3">
-                                  <a href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/tickets/messages/${msg.id}/attachment`} target="_blank" rel="noreferrer" className={`inline-flex items-center px-3 py-2 rounded-xl text-xs font-medium transition-colors border ${isMe ? 'bg-indigo-600 border-indigo-400 text-white hover:bg-indigo-700' : 'bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100'}`}>
-                                    <Paperclip className="w-3.5 h-3.5 mr-2" />
-                                    {msg.attachment_name}
-                                    <Download className="w-3.5 h-3.5 ml-2 opacity-70" />
-                                  </a>
+                        <div key={msg.id} className="py-2 -ml-[19px]">
+                          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 ml-2">
+                            <div className="flex items-start gap-3">
+                              <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">
+                                {msg.author.name.charAt(0)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline gap-2 mb-2 flex-wrap">
+                                  <span className="text-sm font-semibold text-slate-800">
+                                    {msg.author.name}
+                                  </span>
+                                  {msg.author.staff_id && (
+                                    <span className="text-xs text-slate-400 font-mono">
+                                      [{msg.author.staff_id}]
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-slate-400 ml-auto shrink-0">
+                                    {formatDateTime(msg.created_at)}
+                                  </span>
                                 </div>
-                              )}
+                                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                  {msg.content}
+                                </p>
+                                {msg.attachment_name && (
+                                  <a
+                                    href={`${API_BASE}/tickets/messages/${msg.id}/attachment`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-600 hover:bg-slate-100 transition-colors"
+                                  >
+                                    <Paperclip className="w-3 h-3" />
+                                    {msg.attachment_name}
+                                    <Download className="w-3 h-3 opacity-50" />
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       );
                     })}
-                    
+
                     {selectedTicket.messages?.length === 0 && (
-                      <div className="text-center text-slate-400 text-sm py-8">
-                        No replies yet. Be the first to respond!
-                      </div>
+                      <p className="text-xs text-slate-400 py-4">No activity yet.</p>
                     )}
                   </div>
-                  
-                  {/* Reply Box */}
-                  <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+
+                  {/* Add Comment */}
+                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 mt-5">
+                    <PropLabel>Add Comment</PropLabel>
                     {selectedFile && (
-                      <div className="mb-2 flex items-center">
-                        <span className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">
-                          <Paperclip className="w-3 h-3 mr-1" />
-                          <span className="max-w-[200px] truncate">{selectedFile.name}</span>
-                          <button onClick={() => setSelectedFile(null)} className="ml-2 text-indigo-400 hover:text-indigo-600">
-                            <X className="w-3 h-3" />
+                      <div className="mb-2">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600">
+                          <Paperclip className="w-3 h-3" />
+                          <span className="max-w-[180px] truncate">{selectedFile.name}</span>
+                          <button onClick={() => setSelectedFile(null)}>
+                            <X className="w-3 h-3 ml-0.5 text-slate-400 hover:text-slate-700" />
                           </button>
                         </span>
                       </div>
                     )}
-                    <Textarea 
-                      placeholder="Type your message here..."
-                      className="min-h-[100px] border-none focus-visible:ring-0 shadow-none resize-none p-0"
+                    <Textarea
+                      placeholder="Write a comment..."
+                      className="min-h-[80px] border-slate-200 text-sm resize-none focus-visible:ring-1 focus-visible:ring-slate-300"
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                     />
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">
                       <div>
-                        <input 
-                          type="file" 
-                          id="file-upload" 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          id="file-upload"
+                          className="hidden"
                           onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              setSelectedFile(e.target.files[0]);
-                            }
+                            if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
                           }}
                         />
-                        <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-colors">
+                        <label
+                          htmlFor="file-upload"
+                          className="cursor-pointer inline-flex items-center justify-center w-8 h-8 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                        >
                           <Paperclip className="w-4 h-4" />
                         </label>
                       </div>
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs"
                         disabled={(!comment.trim() && !selectedFile) || postMessageMutation.isPending}
                         onClick={() => postMessageMutation.mutate({ content: comment, file: selectedFile })}
                       >
-                        {postMessageMutation.isPending ? "Sending..." : "Send Message"}
-                        {!postMessageMutation.isPending && <Send className="w-4 h-4 ml-2" />}
+                        {postMessageMutation.isPending ? (
+                          <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Posting…</>
+                        ) : (
+                          "Post Comment"
+                        )}
                       </Button>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* ── PROPERTIES PANEL ── */}
+              <div className="w-64 flex-shrink-0 border-l border-slate-200 bg-white overflow-y-auto hidden md:block">
+                <div className="p-4 space-y-4">
+
+                  {/* Status */}
+                  <div>
+                    <PropLabel>Status</PropLabel>
+                    <Badge
+                      className={`text-[10px] uppercase tracking-widest font-bold border px-2 py-0.5 ${getStatusColor(selectedTicket.status)}`}
+                    >
+                      {selectedTicket.status.replace("_", " ")}
+                    </Badge>
+                    {selectedTicket.approval_status === "pending" && (
+                      <Badge className="ml-1 text-[10px] uppercase tracking-widest font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5">
+                        Pending
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Priority */}
+                  <div>
+                    <PropLabel>Priority</PropLabel>
+                    <Select
+                      value={selectedTicket.priority}
+                      onValueChange={(val) => updateTicketMutation.mutate({ priority: val })}
+                      disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
+                    >
+                      <SelectTrigger className="h-8 w-full border-slate-200 text-xs bg-slate-50 hover:bg-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-2 h-2 rounded-full ${getPriorityDot(selectedTicket.priority)}`} />
+                          <span className="capitalize">{selectedTicket.priority}</span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["low", "medium", "high"].map((p) => (
+                          <SelectItem key={p} value={p} className="text-xs capitalize">
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Assignee */}
+                  <div>
+                    <PropLabel>Assignee</PropLabel>
+                    <Select
+                      value={assigneeId || "unassigned"}
+                      onValueChange={(val) =>
+                        updateTicketMutation.mutate({
+                          assigned_to_id: val === "unassigned" ? null : val,
+                        })
+                      }
+                      disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
+                    >
+                      <SelectTrigger className="h-8 w-full border-slate-200 text-xs bg-slate-50 hover:bg-slate-100">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                            {resolvedAssigneeName ? resolvedAssigneeName.replace(/\[.*?\]\s*/, "").charAt(0) : "?"}
+                          </div>
+                          <span className="truncate text-xs">
+                            {resolvedAssigneeName || "Unassigned"}
+                          </span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned" className="text-xs">
+                          Unassigned
+                        </SelectItem>
+                        {allUsers
+                          ?.filter(
+                            (u: any) =>
+                              selectedTicket.rooms?.some((r: any) => u.room_ids?.includes(r.id)) ||
+                              u.id === assigneeId
+                          )
+                          .map((u: any) => (
+                            <SelectItem key={u.id} value={u.id} className="text-xs">
+                              {u.staff_id ? `[${u.staff_id}] ` : ""}
+                              {u.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Due Date – editable by anyone */}
+                  <div>
+                    <PropLabel>Due Date</PropLabel>
+                    <Input
+                      type="datetime-local"
+                      className="h-8 border-slate-200 text-xs bg-slate-50 hover:bg-slate-100"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      onBlur={handleDueDateBlur}
+                    />
+                    {isOverdue && (
+                      <p className="text-[10px] text-red-500 mt-1 font-bold uppercase tracking-wider">
+                        Overdue
+                      </p>
+                    )}
+                  </div>
+
+                  <Separator className="bg-slate-100" />
+
+                  {/* Rooms */}
+                  <div>
+                    <PropLabel>Rooms</PropLabel>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedTicket.rooms?.length > 0 ? (
+                        selectedTicket.rooms.map((room: any) => (
+                          <Badge
+                            key={room.id}
+                            variant="secondary"
+                            className="bg-slate-100 text-slate-600 border border-slate-200 text-[10px] px-1.5 py-0.5 font-medium"
+                          >
+                            {room.name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-400">None</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Escalate */}
+                  <div>
+                    <PropLabel>Escalate To</PropLabel>
+                    <Select
+                      value="placeholder"
+                      onValueChange={(val) => updateTicketMutation.mutate({ add_room_id: val })}
+                      disabled={updateTicketMutation.isPending || selectedTicket.status === "resolved"}
+                    >
+                      <SelectTrigger className="h-8 w-full border-slate-200 text-xs bg-slate-50 hover:bg-slate-100">
+                        <SelectValue placeholder="Add department…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="placeholder" disabled className="text-xs">
+                          Select department…
+                        </SelectItem>
+                        {allRooms
+                          ?.filter(
+                            (r: any) => !selectedTicket.rooms?.some((tr: any) => tr.id === r.id)
+                          )
+                          .map((r: any) => (
+                            <SelectItem key={r.id} value={r.id} className="text-xs">
+                              {r.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator className="bg-slate-100" />
+
+                  {/* Created By */}
+                  <div>
+                    <PropLabel>Created By</PropLabel>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center shrink-0">
+                        {selectedTicket.creator?.name?.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {selectedTicket.creator?.name}
+                        </p>
+                        {selectedTicket.creator?.staff_id && (
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            [{selectedTicket.creator.staff_id}]
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Opened */}
+                  <div>
+                    <PropLabel>Opened</PropLabel>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {formatDateTime(selectedTicket.created_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
             </div>
           ) : null}
         </div>
       ) : (
-        <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-slate-50/50 text-slate-400">
-          <Ticket className="w-16 h-16 mb-4 text-slate-200" />
-          <p className="text-lg font-medium text-slate-500">Select a ticket to view details</p>
-          <p className="text-sm text-slate-400 max-w-sm text-center mt-2">
-            Click on any ticket in the feed on the left to see its full description and message thread.
+        <div className="hidden md:flex flex-1 flex-col items-center justify-center bg-slate-50/30">
+          <Ticket className="w-14 h-14 mb-4 text-slate-200" />
+          <p className="text-base font-medium text-slate-500">Select a ticket to view details</p>
+          <p className="text-sm text-slate-400 mt-1 max-w-xs text-center">
+            Click any ticket to see its full details and activity log.
           </p>
         </div>
       )}
@@ -566,7 +777,13 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="p-8 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>}>
+    <Suspense
+      fallback={
+        <div className="p-8 flex justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        </div>
+      }
+    >
       <DashboardContent />
     </Suspense>
   );

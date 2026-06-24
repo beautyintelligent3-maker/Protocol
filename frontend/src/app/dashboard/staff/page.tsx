@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { createUser, updateUser, deleteUser, fetchAllRooms, fetchAllUsers } from "@/lib/api";
+import { createUser, updateUser, deleteUser, fetchAllRooms, fetchAllUsers, createRoom } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +36,27 @@ export default function StaffManagementPage() {
 
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editFormData, setEditFormData] = useState({ name: "", email: "", password: "", role: "", room_ids: [] as string[] });
+
+  const [roomFormData, setRoomFormData] = useState({ name: "", type: "branch" });
+  const [roomSuccess, setRoomSuccess] = useState(false);
+  const [roomError, setRoomError] = useState<string | null>(null);
+
+  const createRoomMutation = useMutation({
+    mutationFn: createRoom,
+    onSuccess: () => {
+      setRoomSuccess(true);
+      setRoomError(null);
+      setRoomFormData({ name: "", type: "branch" });
+      queryClient.invalidateQueries({ queryKey: ["admin-rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["allRooms"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      setTimeout(() => setRoomSuccess(false), 4000);
+    },
+    onError: (err: any) => {
+      setRoomError(err.message);
+      setRoomSuccess(false);
+    },
+  });
   const currentUserRole = "owner"; // Assumed owner role for this restricted page
 
   const updateMutation = useMutation({
@@ -100,6 +121,73 @@ export default function StaffManagementPage() {
               This area is highly restricted. Only Owners can create new staff accounts. Accounts created here bypass email verification and are active immediately.
             </AlertDescription>
           </Alert>
+        </div>
+
+        {/* Room Management */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          <Card className="lg:col-span-1 bg-white border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl text-slate-900">Create Room</CardTitle>
+              <CardDescription className="text-slate-500">Add a new department or branch (e.g. Doctors).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!roomFormData.name.trim()) return;
+                  createRoomMutation.mutate(roomFormData);
+                }}
+                className="space-y-4"
+              >
+                {roomError && (
+                  <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400 p-3">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{roomError}</AlertDescription>
+                  </Alert>
+                )}
+                {roomSuccess && (
+                  <Alert className="bg-green-500/10 border-green-500/20 text-green-400 p-3">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription className="text-xs">Room created successfully.</AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">Room Name</label>
+                  <Input
+                    required
+                    placeholder="e.g. Doctors"
+                    value={roomFormData.name}
+                    onChange={(e) => setRoomFormData({ ...roomFormData, name: e.target.value })}
+                    className="bg-slate-50 border-slate-200 text-slate-900"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">Room Type</label>
+                  <Select value={roomFormData.type} onValueChange={(val) => setRoomFormData({ ...roomFormData, type: val || "branch" })}>
+                    <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-900">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="branch">Branch</SelectItem>
+                      <SelectItem value="department">Department</SelectItem>
+                      <SelectItem value="founder">Founder</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="submit"
+                  disabled={createRoomMutation.isPending}
+                  className="w-full bg-indigo-500 hover:bg-indigo-600 text-white mt-2"
+                >
+                  {createRoomMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating…</>
+                  ) : (
+                    "Create Room"
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

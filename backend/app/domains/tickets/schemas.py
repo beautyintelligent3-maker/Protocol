@@ -42,6 +42,7 @@ class TicketUpdate(BaseModel):
     priority: Optional[TicketPriority] = None
     assigned_to_id: Optional[UUID] = None
     add_room_id: Optional[UUID] = None
+    due_date: Optional[datetime] = None
 
 
 class TicketOut(BaseModel):

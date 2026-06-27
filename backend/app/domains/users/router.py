@@ -1,13 +1,36 @@
+import os
+import uuid
 from typing import Any, List
 
-from fastapi import APIRouter, Depends
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
+from supabase import Client, create_client
 
 from app import models, schemas
 from app.api.deps import get_current_user, get_db
 from app.config import settings
 
 router = APIRouter()
+
+
+def sync_user_to_google_sheet(action: str, email: str, name: str = "", role: str = "", password: str = ""):
+    webhook_url = os.getenv("GOOGLE_SHEET_WEBHOOK_URL")
+    if not webhook_url:
+        return
+    try:
+        payload = {
+            "action": action,
+            "email": email,
+            "name": name,
+            "role": role,
+            "password": password
+        }
+        # Send post request to Apps Script Web App
+        response = httpx.post(webhook_url, json=payload, timeout=10.0)
+        print(f"Google Sheet Sync ({action} for {email}): Status {response.status_code}")
+    except Exception as e:
+        print(f"Failed to sync user to Google Sheet: {e}")
 
 
 @router.get("/me", response_model=schemas.UserOut)
@@ -26,11 +49,7 @@ def get_users(db: Session = Depends(get_db)) -> Any:
     return db.query(models.Employee).filter(models.Employee.is_active == True).all()
 
 
-import os
-import uuid
 
-from fastapi import HTTPException
-from supabase import Client, create_client
 
 
 @router.post("", response_model=schemas.UserOut)
@@ -38,11 +57,16 @@ def create_user(
     *,
     db: Session = Depends(get_db),
     user_in: schemas.UserCreate,
+    background_tasks: BackgroundTasks,
     current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
     Create new staff user. Only Owners can create accounts.
     """
+    import uuid
+
+    from fastapi import HTTPException
+    from supabase import Client, create_client
     if current_user.role != "owner":
         raise HTTPException(status_code=403, detail="Only owners can create new staff accounts")
 
@@ -92,6 +116,17 @@ def create_user(
 
         db.commit()
         db.refresh(employee)
+
+        # Trigger Google Sheet sync in background
+        background_tasks.add_task(
+            sync_user_to_google_sheet,
+            action="create",
+            email=employee.email,
+            name=employee.name,
+            role=employee.role,
+            password=user_in.password
+        )
+
         return employee
 
     except Exception as e:
@@ -105,6 +140,7 @@ def update_user(
     db: Session = Depends(get_db),
     user_id: uuid.UUID,
     user_in: schemas.UserUpdate,
+    background_tasks: BackgroundTasks,
     current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
@@ -157,6 +193,17 @@ def update_user(
 
         db.commit()
         db.refresh(employee)
+
+        # Trigger Google Sheet sync in background
+        background_tasks.add_task(
+            sync_user_to_google_sheet,
+            action="update",
+            email=employee.email,
+            name=employee.name,
+            role=employee.role,
+            password=user_in.password if user_in.password else ""
+        )
+
         return employee
 
     except Exception as e:
@@ -169,6 +216,7 @@ def delete_user(
     *,
     db: Session = Depends(get_db),
     user_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
     """
@@ -190,6 +238,13 @@ def delete_user(
 
         employee.is_active = False
         db.commit()
+
+        # Trigger Google Sheet sync in background
+        background_tasks.add_task(
+            sync_user_to_google_sheet,
+            action="delete",
+            email=employee.email
+        )
 
         return {"success": True}
 

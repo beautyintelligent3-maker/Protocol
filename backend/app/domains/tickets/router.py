@@ -256,15 +256,15 @@ def get_message_attachment(
     if current_user.role != "owner":
         # Check if user is creator or assignee
         is_creator_or_assignee = (ticket.creator_id == current_user.id or ticket.assigned_to_id == current_user.id)
-        
+
         # Check if user belongs to any of the rooms the ticket is linked to
         ticket_room_ids = {link.room_id for link in ticket.room_links}
         user_room_ids = {m.room_id for m in current_user.room_memberships}
         has_room_access = bool(ticket_room_ids & user_room_ids)
-        
+
         # Check if it's in a universal room
         is_universal = any(link.room.type == models.RoomType.universal for link in ticket.room_links)
-        
+
         if not is_creator_or_assignee and not has_room_access and not is_universal:
             raise HTTPException(status_code=403, detail="Not authorized to access this attachment")
 

@@ -133,6 +133,22 @@ def create_ticket(
         ticket_room = models.TicketRoom(ticket_id=ticket.id, room_id=r_id)
         db.add(ticket_room)
 
+    # Notify all Owners
+    owners = db.query(models.Employee).filter(models.Employee.role == "owner").all()
+    for owner in owners:
+        if owner.id != current_user.id:
+            db.add(models.Notification(
+                user_id=owner.id,
+                message=f"New ticket created: {ticket.title}"
+            ))
+
+    # Notify Assignee
+    if ticket.assigned_to_id and ticket.assigned_to_id != current_user.id:
+        db.add(models.Notification(
+            user_id=ticket.assigned_to_id,
+            message=f"You have been assigned to a new ticket: {ticket.title}"
+        ))
+
     db.commit()
     db.refresh(ticket)
     return ticket
@@ -340,6 +356,13 @@ def update_ticket(
                 )
                 db.add(system_msg)
                 ticket.assigned_to_id = assignee.id
+
+                # Notify newly assigned employee
+                if assignee.id != current_user.id:
+                    db.add(models.Notification(
+                        user_id=assignee.id,
+                        message=f"You have been assigned to ticket: {ticket.title}"
+                    ))
 
     if "due_date" in ticket_in.model_fields_set and ticket_in.due_date != ticket.due_date:
         ticket.due_date = ticket_in.due_date

@@ -124,158 +124,159 @@ export default function StaffManagementPage() {
           </Alert>
         </div>
 
-        {/* Room Management */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <Card className="lg:col-span-1 bg-white border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-xl text-slate-900">Create Room</CardTitle>
-              <CardDescription className="text-slate-500">Add a new department or branch (e.g. Doctors).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!roomFormData.name.trim()) return;
-                  createRoomMutation.mutate(roomFormData);
-                }}
-                className="space-y-4"
-              >
-                {roomError && (
-                  <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400 p-3">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">{roomError}</AlertDescription>
-                  </Alert>
-                )}
-                {roomSuccess && (
-                  <Alert className="bg-green-500/10 border-green-500/20 text-green-400 p-3">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <AlertDescription className="text-xs">Room created successfully.</AlertDescription>
-                  </Alert>
-                )}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-700">Room Name</label>
-                  <Input
-                    required
-                    placeholder="e.g. Doctors"
-                    value={roomFormData.name}
-                    onChange={(e) => setRoomFormData({ ...roomFormData, name: e.target.value })}
-                    className="bg-slate-50 border-slate-200 text-slate-900"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-700">Room Type</label>
-                  <Select value={roomFormData.type} onValueChange={(val) => setRoomFormData({ ...roomFormData, type: val || "branch" })}>
-                    <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-900">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="branch">Branch</SelectItem>
-                      <SelectItem value="department">Department</SelectItem>
-                      <SelectItem value="founder">Founder</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  type="submit"
-                  disabled={createRoomMutation.isPending}
-                  className="w-full bg-indigo-500 hover:bg-indigo-600 text-white mt-2"
-                >
-                  {createRoomMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating…</>
-                  ) : (
-                    "Create Room"
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* Left Column (Create Account & Create Room stack) */}
+          <div className="lg:col-span-1 space-y-8 flex flex-col">
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl text-slate-900">Create Account</CardTitle>
+                <CardDescription className="text-slate-500">Fill out the details for the new staff member.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400 p-3">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">{error}</AlertDescription>
+                    </Alert>
                   )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+                  {success && (
+                    <Alert className="bg-green-500/10 border-green-500/20 text-green-400 p-3">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertDescription className="text-xs">User successfully created.</AlertDescription>
+                    </Alert>
+                  )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-1 bg-white border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-xl text-slate-900">Create Account</CardTitle>
-              <CardDescription className="text-slate-500">Fill out the details for the new staff member.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400 p-3">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">{error}</AlertDescription>
-                  </Alert>
-                )}
-                {success && (
-                  <Alert className="bg-green-500/10 border-green-500/20 text-green-400 p-3">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <AlertDescription className="text-xs">User successfully created.</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-700">Full Name</label>
-                  <Input required placeholder="Jane Doe" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-700">Email Address</label>
-                  <Input type="email" required placeholder="jane@biw.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-700">Temporary Password</label>
-                  <Input type="text" required placeholder="password123" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-700">Role</label>
-                  <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val || "therapist"})}>
-                    <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-900">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200 text-slate-900">
-                      <SelectItem value="therapist">Therapist</SelectItem>
-                      <SelectItem value="manager">Branch Manager</SelectItem>
-                      <SelectItem value="hr">HR</SelectItem>
-                      <SelectItem value="it_team">IT Support</SelectItem>
-                      <SelectItem value="executive">Executive</SelectItem>
-                      <SelectItem value="cleaner">Cleaner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-700">Initial Branch(es) / Department(s)</label>
-                  <div className="border border-slate-200 bg-slate-50 rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                    {rooms?.map((r: any) => (
-                      <label key={r.id} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
-                          checked={formData.room_ids.includes(r.id)}
-                          onChange={(e) => {
-                            const newRoomIds = e.target.checked 
-                              ? [...formData.room_ids, r.id]
-                              : formData.room_ids.filter((id) => id !== r.id);
-                            setFormData({...formData, room_ids: newRoomIds});
-                          }}
-                        />
-                        {r.name} ({r.type})
-                      </label>
-                    ))}
-                    {(!rooms || rooms.length === 0) && <p className="text-xs text-slate-500">No rooms available.</p>}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Full Name</label>
+                    <Input required placeholder="Jane Doe" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
                   </div>
-                </div>
 
-                <Button type="submit" disabled={createMutation.isPending} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white mt-4">
-                  {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
-                  Provision Account
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Email Address</label>
+                    <Input type="email" required placeholder="jane@biw.com" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
+                  </div>
 
-          <Card className="lg:col-span-2 bg-white border-slate-200 shadow-sm">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Temporary Password</label>
+                    <Input type="text" required placeholder="password123" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="bg-slate-50 border-slate-200 text-slate-900" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Role</label>
+                    <Select value={formData.role} onValueChange={(val) => setFormData({...formData, role: val || "therapist"})}>
+                      <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-900">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-slate-200 text-slate-900">
+                        <SelectItem value="therapist">Therapist</SelectItem>
+                        <SelectItem value="manager">Branch Manager</SelectItem>
+                        <SelectItem value="hr">HR</SelectItem>
+                        <SelectItem value="it_team">IT Support</SelectItem>
+                        <SelectItem value="executive">Executive</SelectItem>
+                        <SelectItem value="cleaner">Cleaner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Initial Branch(es) / Department(s)</label>
+                    <div className="border border-slate-200 bg-slate-50 rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                      {rooms?.map((r: any) => (
+                        <label key={r.id} className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
+                            checked={formData.room_ids.includes(r.id)}
+                            onChange={(e) => {
+                              const newRoomIds = e.target.checked 
+                                ? [...formData.room_ids, r.id]
+                                : formData.room_ids.filter((id) => id !== r.id);
+                              setFormData({...formData, room_ids: newRoomIds});
+                            }}
+                          />
+                          {r.name} ({r.type})
+                        </label>
+                      ))}
+                      {(!rooms || rooms.length === 0) && <p className="text-xs text-slate-500">No rooms available.</p>}
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={createMutation.isPending} className="w-full bg-indigo-500 hover:bg-indigo-600 text-white mt-4">
+                    {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                    Provision Account
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl text-slate-900">Create Room</CardTitle>
+                <CardDescription className="text-slate-500">Add a new department or branch (e.g. Doctors).</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!roomFormData.name.trim()) return;
+                    createRoomMutation.mutate(roomFormData);
+                  }}
+                  className="space-y-4"
+                >
+                  {roomError && (
+                    <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-400 p-3">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-xs">{roomError}</AlertDescription>
+                    </Alert>
+                  )}
+                  {roomSuccess && (
+                    <Alert className="bg-green-500/10 border-green-500/20 text-green-400 p-3">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertDescription className="text-xs">Room created successfully.</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Room Name</label>
+                    <Input
+                      required
+                      placeholder="e.g. Doctors"
+                      value={roomFormData.name}
+                      onChange={(e) => setRoomFormData({ ...roomFormData, name: e.target.value })}
+                      className="bg-slate-50 border-slate-200 text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-slate-700">Room Type</label>
+                    <Select value={roomFormData.type} onValueChange={(val) => setRoomFormData({ ...roomFormData, type: val || "branch" })}>
+                      <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-900">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="branch">Branch</SelectItem>
+                        <SelectItem value="department">Department</SelectItem>
+                        <SelectItem value="founder">Founder</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={createRoomMutation.isPending}
+                    className="w-full bg-indigo-500 hover:bg-indigo-600 text-white mt-2"
+                  >
+                    {createRoomMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating…</>
+                    ) : (
+                      "Create Room"
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column (Active Staff Directory) */}
+          <Card className="lg:col-span-2 bg-white border-slate-200 shadow-sm flex flex-col h-full self-start">
             <CardHeader>
               <CardTitle className="text-xl text-slate-900">Active Staff Directory</CardTitle>
               <CardDescription className="text-slate-500">All users currently in the system.</CardDescription>
@@ -297,7 +298,7 @@ export default function StaffManagementPage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
+                <div className="max-h-[640px] overflow-y-auto pr-2 flex flex-col gap-3 custom-scrollbar">
                   {users?.map((user: any) => (
                     <div key={user.id} className={`p-4 rounded-xl border ${user.has_penalty ? 'border-red-200 bg-red-50/50 hover:bg-red-50' : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'} flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-3 transition-colors`}>
                       <div className="flex flex-col min-w-0">

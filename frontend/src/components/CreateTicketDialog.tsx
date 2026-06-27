@@ -53,7 +53,7 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
       description,
       priority,
       room_ids: [selectedRoomId],
-      ...(assignedToId && { assigned_to_id: assignedToId }),
+      ...(assignedToId && assignedToId !== "none" && { assigned_to_id: assignedToId }),
       ...(dueDate && { due_date: new Date(dueDate).toISOString() })
     });
   };

@@ -53,9 +53,9 @@ export async function fetchRooms() {
 
 export async function fetchTickets(params?: { room_id?: string, assignee_staff_id?: string, status?: string }) {
   const query = new URLSearchParams();
-  if (params?.room_id) query.append("room_id", params.room_id);
-  if (params?.assignee_staff_id) query.append("assignee_staff_id", params.assignee_staff_id);
-  if (params?.status) query.append("status", params.status);
+  if (params?.room_id && params.room_id !== "undefined" && params.room_id !== "null") query.append("room_id", params.room_id);
+  if (params?.assignee_staff_id && params.assignee_staff_id !== "undefined" && params.assignee_staff_id !== "null") query.append("assignee_staff_id", params.assignee_staff_id);
+  if (params?.status && params.status !== "undefined" && params.status !== "null") query.append("status", params.status);
   
   const queryString = query.toString();
   return fetchApi(`/tickets${queryString ? `?${queryString}` : ''}`);

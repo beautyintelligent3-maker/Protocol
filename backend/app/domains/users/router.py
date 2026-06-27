@@ -146,12 +146,17 @@ def update_user(
     """
     Update a staff user. Only Owners can update accounts.
     """
-    if current_user.role != "owner":
-        raise HTTPException(status_code=403, detail="Only owners can edit staff accounts")
-
     employee = db.query(models.Employee).filter(models.Employee.id == user_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if current_user.role != "owner":
+        if current_user.id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to edit this account")
+        if user_in.role is not None and user_in.role != employee.role:
+            raise HTTPException(status_code=403, detail="Not authorized to change your own role")
+        if user_in.room_ids is not None:
+            raise HTTPException(status_code=403, detail="Not authorized to change your own branch assignments")
 
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")

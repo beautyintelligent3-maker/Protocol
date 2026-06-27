@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, KeyRound, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+import { updateUser } from "@/lib/api";
+
 export function ChangePasswordDialog({ children }: { children?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
@@ -30,13 +32,21 @@ export function ChangePasswordDialog({ children }: { children?: React.ReactNode 
     setError(null);
     setSuccess(false);
 
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+    try {
+      // 1. Update in Supabase client side auth
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
 
-    setLoading(false);
+      // 2. Fetch current user session to get user ID
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) {
+        throw new Error("Active session not found");
+      }
 
-    if (updateError) {
-      setError(updateError.message);
-    } else {
+      // 3. Call backend to update password & sync to Google Sheet
+      await updateUser(userId, { password });
+
       setSuccess(true);
       setPassword("");
       setConfirmPassword("");
@@ -44,6 +54,10 @@ export function ChangePasswordDialog({ children }: { children?: React.ReactNode 
         setOpen(false);
         setSuccess(false);
       }, 2000);
+    } catch (err: any) {
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
     }
   };
 

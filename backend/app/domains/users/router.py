@@ -156,11 +156,12 @@ def create_user(
 
         new_uuid = res.user.id
 
-        # Generate staff_id
+        # Generate next staff_id from actual table max (never drifts out of sync)
         from sqlalchemy import text
-
-        seq_val = db.execute(text("SELECT nextval('staff_id_seq')")).scalar()
-        staff_id_str = str(seq_val).zfill(4)
+        max_id = db.execute(text(
+            "SELECT COALESCE(MAX(CAST(staff_id AS INTEGER)), 0) FROM employees WHERE staff_id ~ '^[0-9]+$'"
+        )).scalar()
+        staff_id_str = str(max_id + 1).zfill(4)
 
         # Create Employee in local DB with exactly the same UUID
         employee = models.Employee(
@@ -229,10 +230,12 @@ def create_user(
                     }
                 )
 
-                # Generate a new staff_id for the recovered account
+                # Generate next staff_id from actual table max (never drifts out of sync)
                 from sqlalchemy import text
-                seq_val = db.execute(text("SELECT nextval('staff_id_seq')")).scalar()
-                staff_id_str = str(seq_val).zfill(4)
+                max_id = db.execute(text(
+                    "SELECT COALESCE(MAX(CAST(staff_id AS INTEGER)), 0) FROM employees WHERE staff_id ~ '^[0-9]+$'"
+                )).scalar()
+                staff_id_str = str(max_id + 1).zfill(4)
 
                 # Create a fresh local DB record using the existing Auth UUID
                 employee = models.Employee(

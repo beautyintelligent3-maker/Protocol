@@ -93,8 +93,10 @@ def get_current_user(
             # Create completely new employee record
             from sqlalchemy import text
 
-            seq_val = db.execute(text("SELECT nextval('staff_id_seq')")).scalar()
-            staff_id_str = str(seq_val).zfill(4)
+            max_id = db.execute(text(
+                "SELECT COALESCE(MAX(CAST(staff_id AS INTEGER)), 0) FROM employees WHERE staff_id ~ '^[0-9]+$'"
+            )).scalar()
+            staff_id_str = str(max_id + 1).zfill(4)
 
             user_metadata = payload.get("user_metadata", {})
             name = user_metadata.get("name", email.split("@")[0])

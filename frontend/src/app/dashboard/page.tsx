@@ -260,7 +260,7 @@ function DashboardContent() {
   const goBack = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("ticket_id");
-    router.push(`/dashboard?${params.toString()}`);
+    router.push(`/dashboard?${params.toString()}`, { scroll: false });
   };
 
   const roomName = roomId
@@ -568,7 +568,7 @@ function DashboardContent() {
                     params.set("ticket_id", ticket.id);
                     if (roomSlug) params.set("room", roomSlug);
                     else if (roomId) params.set("room_id", roomId);
-                    router.push(`/dashboard?${params.toString()}`);
+                    router.push(`/dashboard?${params.toString()}`, { scroll: false });
                   }}
                   className={`w-full text-left p-3.5 transition-colors hover:bg-slate-50 relative ${
                     ticket.id === ticketId

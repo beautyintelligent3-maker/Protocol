@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 import { createTicket, fetchAllRooms, fetchAllUsers, fetchRoomMembers } from "@/lib/api";
 
@@ -20,6 +22,7 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
   const [selectedRoomId, setSelectedRoomId] = useState<string>(roomId || "");
   const [assignedToId, setAssignedToId] = useState<string>("");
   const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: rooms } = useQuery({ queryKey: ["allRooms"], queryFn: fetchAllRooms });
@@ -130,59 +133,73 @@ export function CreateTicketDialog({ roomId }: { roomId?: string | null }) {
           ) : (
             <div className="space-y-2">
               <Label htmlFor="assignee">Assign To</Label>
-              <Select
-                value={assignedToId}
-                onValueChange={(val) => setAssignedToId(val || "")}
-                onOpenChange={(open) => {
-                  if (!open) setAssigneeSearch("");
-                }}
-                disabled={!selectedRoomId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"}>
-                    {assignedToId === "none" ? "Unassigned" : (filteredUsers.find((u: any) => u.id === assignedToId)?.name || (selectedRoomId ? "Select an assignee (Optional)" : "Select a room first"))}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <div className="p-1">
-                    <Input
-                      placeholder="Search assignee..."
+              <Popover open={assigneeOpen} onOpenChange={(open) => {
+                setAssigneeOpen(open);
+                if (!open) setAssigneeSearch("");
+              }}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={assigneeOpen}
+                    disabled={!selectedRoomId}
+                    className="w-full justify-between font-normal text-slate-700 bg-white border-slate-200"
+                  >
+                    {assignedToId && assignedToId !== "none"
+                      ? filteredUsers.find((u: any) => u.id === assignedToId)?.name 
+                      : (selectedRoomId ? "Select an assignee (Optional)" : "Select a room first")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput 
+                      placeholder="Search assignee..." 
                       value={assigneeSearch}
-                      onChange={(e) => setAssigneeSearch(e.target.value)}
-                      onKeyDown={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-8 text-xs mb-1 bg-slate-50 focus:bg-white"
+                      onValueChange={setAssigneeSearch}
+                      className="h-9 text-xs"
                     />
-                  </div>
-                  <SelectItem value="none">Unassigned</SelectItem>
-                  {(() => {
-                    const filtered = filteredUsers.filter((u: any) => {
-                      const query = assigneeSearch.toLowerCase().trim();
-                      if (!query) return true;
-                      const nameMatch = u.name?.toLowerCase().includes(query);
-                      const staffIdMatch = u.staff_id?.toLowerCase().includes(query);
-                      return nameMatch || staffIdMatch;
-                    });
+                    <CommandList>
+                      <CommandEmpty>No staff found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="none"
+                          onSelect={() => {
+                            setAssignedToId("");
+                            setAssigneeOpen(false);
+                          }}
+                          className="text-xs"
+                        >
+                          Unassigned
+                        </CommandItem>
+                        {(() => {
+                          let options = roomMembers ? [...roomMembers] : [];
+                          const filtered = options.filter((u: any) => {
+                            const query = assigneeSearch.toLowerCase().trim();
+                            if (!query) return true;
+                            const nameMatch = u.name?.toLowerCase().includes(query);
+                            const staffIdMatch = u.staff_id?.toLowerCase().includes(query);
+                            return nameMatch || staffIdMatch;
+                          });
 
-                    if (filtered.length === 0) {
-                      return (
-                        <div className="text-slate-400 text-center py-2 text-xs">
-                          No staff found
-                        </div>
-                      );
-                    }
-
-                    return filtered.map((u: any) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.staff_id ? `[${u.staff_id}] ` : ""}
-                        {u.name}
-                      </SelectItem>
-                    ));
-                  })()}
-                </SelectContent>
-              </Select>
+                          return filtered.map((u: any) => (
+                            <CommandItem
+                              key={u.id}
+                              value={u.id}
+                              onSelect={() => {
+                                setAssignedToId(u.id);
+                                setAssigneeOpen(false);
+                              }}
+                              className="text-xs"
+                            >
+                              {u.staff_id ? `[${u.staff_id}] ` : ""}{u.name}
+                            </CommandItem>
+                          ));
+                        })()}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 

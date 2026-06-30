@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { CreateTicketDialog } from "@/components/CreateTicketDialog";
 import { supabase } from "@/lib/supabase";
@@ -74,6 +76,7 @@ function DashboardContent() {
   const [dueDate, setDueDate] = useState("");
   const [mobileTab, setMobileTab] = useState<"activity" | "details">("activity");
   const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -315,76 +318,85 @@ function DashboardContent() {
       {!isSelectedTicketUniversal && (
         <div>
           <PropLabel>Assignee</PropLabel>
-          <Select
-            value={assigneeId || "unassigned"}
-            onValueChange={(val) =>
-              updateTicketMutation.mutate({
-                assigned_to_id: val === "unassigned" ? null : val,
-              })
-            }
-            onOpenChange={(open) => {
-              if (!open) setAssigneeSearch("");
-            }}
-            disabled={updateTicketMutation.isPending || selectedTicket!.status === "resolved"}
-          >
-            <SelectTrigger className="h-8 w-full border-slate-200 text-xs bg-slate-50 hover:bg-slate-100">
-              <div className="flex items-center gap-1.5 truncate">
-                <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                  {resolvedAssigneeName
-                    ? resolvedAssigneeName.replace(/\[.*?\]\s*/, "").charAt(0)
-                    : "?"}
+          <Popover open={assigneeOpen} onOpenChange={(open) => {
+            setAssigneeOpen(open);
+            if (!open) setAssigneeSearch("");
+          }}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={assigneeOpen}
+                disabled={updateTicketMutation.isPending || selectedTicket!.status === "resolved"}
+                className="h-8 w-full justify-between border-slate-200 text-xs bg-slate-50 hover:bg-slate-100 font-normal px-3"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {resolvedAssigneeName
+                      ? resolvedAssigneeName.replace(/\[.*?\]\s*/, "").charAt(0)
+                      : "?"}
+                  </div>
+                  <span className="truncate text-xs">
+                    {resolvedAssigneeName || "Unassigned"}
+                  </span>
                 </div>
-                <span className="truncate text-xs">
-                  {resolvedAssigneeName || "Unassigned"}
-                </span>
-              </div>
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
-              <div className="p-1">
-                <Input
-                  placeholder="Search assignee..."
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[250px] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput 
+                  placeholder="Search assignee..." 
                   value={assigneeSearch}
-                  onChange={(e) => setAssigneeSearch(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  className="h-8 text-xs mb-1 bg-slate-50 focus:bg-white"
+                  onValueChange={setAssigneeSearch}
+                  className="h-9 text-xs"
                 />
-              </div>
-              <SelectItem value="unassigned" className="text-xs">Unassigned</SelectItem>
-              {(() => {
-                const options = ticketRoomMembers ? [...ticketRoomMembers] : [];
-                if (selectedTicket?.assignee && typeof selectedTicket.assignee === "object") {
-                  if (!options.some((u: any) => u.id === selectedTicket.assignee.id)) {
-                    options.push(selectedTicket.assignee);
-                  }
-                }
-                const filtered = options.filter((u: any) => {
-                  const query = assigneeSearch.toLowerCase().trim();
-                  if (!query) return true;
-                  const nameMatch = u.name?.toLowerCase().includes(query);
-                  const staffIdMatch = u.staff_id?.toLowerCase().includes(query);
-                  return nameMatch || staffIdMatch;
-                });
+                <CommandList>
+                  <CommandEmpty>No staff found</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="unassigned"
+                      onSelect={() => {
+                        updateTicketMutation.mutate({ assigned_to_id: null });
+                        setAssigneeOpen(false);
+                      }}
+                      className="text-xs"
+                    >
+                      Unassigned
+                    </CommandItem>
+                    {(() => {
+                      const options = ticketRoomMembers ? [...ticketRoomMembers] : [];
+                      if (selectedTicket?.assignee && typeof selectedTicket.assignee === "object") {
+                        if (!options.some((u: any) => u.id === selectedTicket.assignee.id)) {
+                          options.push(selectedTicket.assignee);
+                        }
+                      }
+                      const filtered = options.filter((u: any) => {
+                        const query = assigneeSearch.toLowerCase().trim();
+                        if (!query) return true;
+                        const nameMatch = u.name?.toLowerCase().includes(query);
+                        const staffIdMatch = u.staff_id?.toLowerCase().includes(query);
+                        return nameMatch || staffIdMatch;
+                      });
 
-                if (filtered.length === 0) {
-                  return (
-                    <div className="text-slate-400 text-center py-2 text-xs">
-                      No staff found
-                    </div>
-                  );
-                }
-
-                return filtered.map((u: any) => (
-                  <SelectItem key={u.id} value={u.id} className="text-xs">
-                    {u.staff_id ? `[${u.staff_id}] ` : ""}
-                    {u.name}
-                  </SelectItem>
-                ));
-              })()}
-            </SelectContent>
-          </Select>
+                      return filtered.map((u: any) => (
+                        <CommandItem
+                          key={u.id}
+                          value={u.id}
+                          onSelect={() => {
+                            updateTicketMutation.mutate({ assigned_to_id: u.id });
+                            setAssigneeOpen(false);
+                          }}
+                          className="text-xs"
+                        >
+                          {u.staff_id ? `[${u.staff_id}] ` : ""}{u.name}
+                        </CommandItem>
+                      ));
+                    })()}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       )}
 

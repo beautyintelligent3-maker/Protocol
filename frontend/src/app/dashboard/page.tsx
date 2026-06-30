@@ -101,8 +101,14 @@ function DashboardContent() {
 
   const { data: fetchedTickets, isLoading, error } = useQuery({
     queryKey: ["tickets", roomId, filterStaffId],
-    queryFn: () => fetchTickets({ room_id: roomId || undefined, assignee_staff_id: filterStaffId || undefined }),
-    enabled: roomSlug ? !!roomId : true,
+    queryFn: async () => {
+      const all = await fetchTickets({ room_id: roomId || undefined, assignee_staff_id: filterStaffId || undefined });
+      if (!filterStaffId) return all;
+      return all.filter((t: any) =>
+        t.creator?.staff_id === filterStaffId || t.assignee?.staff_id === filterStaffId
+      );
+    },
+    refetchInterval: 5000,
   });
 
   const tickets = fetchedTickets
@@ -117,6 +123,7 @@ function DashboardContent() {
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicketDetails(ticketId as string),
     enabled: !!ticketId,
+    refetchInterval: 3000,
   });
 
   // Reset mobile tab + due date when ticket changes

@@ -46,7 +46,7 @@ def get_current_user_profile(current_user: models.Employee = Depends(get_current
 
 @router.get("", response_model=List[schemas.UserOut])
 def get_users(
-    room_id: uuid.UUID = None,
+    room_id: str = None,
     db: Session = Depends(get_db),
     current_user: models.Employee = Depends(get_current_user),
 ) -> Any:
@@ -54,21 +54,26 @@ def get_users(
     Get all employees. Scoped by role:
     - Owners, HR, IT Support, Executives see all.
     - Managers see only employees sharing branch rooms they manage.
-    - If room_id is provided, returns all active employees who are members of that room.
+    - If room_id is provided, returns all active employees who are members of that room (supports comma-separated room IDs).
     """
     if room_id:
-        room = db.query(models.Room).filter(models.Room.id == room_id, models.Room.is_active == True).first()
-        if not room:
-            raise HTTPException(status_code=404, detail="Room not found")
+        try:
+            target_ids = [uuid.UUID(rid.strip()) for rid in room_id.split(",") if rid.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid UUID in room_id")
 
-        # Security check: verify if the caller is an owner/admin, or if it is a universal room,
-        # or if the caller is explicitly a member of the room.
-        if current_user.role not in ["owner", "hr", "it_team", "executive"]:
-            user_room_ids = [m.room_id for m in current_user.room_memberships]
-            if room.type != models.RoomType.universal and room_id not in user_room_ids:
-                raise HTTPException(status_code=403, detail="Not authorized to view members of this room")
+        if not target_ids:
+            return []
 
-        if room.type == models.RoomType.universal:
+        # Load specified rooms
+        rooms = db.query(models.Room).filter(models.Room.id.in_(target_ids), models.Room.is_active == True).all()
+        if not rooms:
+            return []
+
+        # Check if any room is universal
+        has_universal = any(r.type == models.RoomType.universal for r in rooms)
+
+        if has_universal:
             return db.query(models.Employee).filter(models.Employee.is_active == True).all()
         else:
             return (
@@ -76,8 +81,9 @@ def get_users(
                 .join(models.RoomMember, models.Employee.id == models.RoomMember.employee_id)
                 .filter(
                     models.Employee.is_active == True,
-                    models.RoomMember.room_id == room_id
+                    models.RoomMember.room_id.in_(target_ids)
                 )
+                .distinct()
                 .all()
             )
 

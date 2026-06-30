@@ -222,11 +222,11 @@ function DashboardContent() {
     (r: any) => r.type === "universal" || r.name?.toLowerCase() === "universal"
   );
 
-  const primaryTicketRoomId = selectedTicket?.rooms?.[0]?.id;
+  const ticketRoomIds = selectedTicket?.rooms?.map((r: any) => r.id).join(",") || "";
   const { data: ticketRoomMembers } = useQuery({
-    queryKey: ["ticketRoomMembers", primaryTicketRoomId],
-    queryFn: () => primaryTicketRoomId ? fetchRoomMembers(primaryTicketRoomId) : Promise.resolve([]),
-    enabled: !!primaryTicketRoomId && !isSelectedTicketUniversal,
+    queryKey: ["ticketRoomMembers", ticketRoomIds],
+    queryFn: () => ticketRoomIds ? fetchRoomMembers(ticketRoomIds) : Promise.resolve([]),
+    enabled: !!ticketRoomIds && !isSelectedTicketUniversal,
   });
 
   const handleDueDateBlur = () => {

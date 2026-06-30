@@ -862,10 +862,10 @@ function DashboardContent() {
                                   {msg.attachment_name && (
                                     <button
                                       onClick={() => downloadAttachment(msg.id, msg.attachment_name)}
-                                      className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                                      className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer max-w-full"
                                     >
                                       <Paperclip className="w-3 h-3 shrink-0" />
-                                      <span className="truncate max-w-[160px]">{msg.attachment_name}</span>
+                                      <span className="truncate flex-1 text-left min-w-0">{msg.attachment_name}</span>
                                       <Download className="w-3 h-3 opacity-50 shrink-0" />
                                     </button>
                                   )}

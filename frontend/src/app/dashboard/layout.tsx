@@ -301,7 +301,7 @@ export default function DashboardLayout({
           onClick={() => {
             const params = new URLSearchParams(window.location.search);
             params.delete('ticket_id');
-            router.push(`/dashboard?${params.toString()}`);
+            router.push(`/dashboard?${params.toString()}`, { scroll: false });
           }} 
           className="flex flex-col items-center justify-center w-16 h-full text-slate-500 hover:text-indigo-600 transition-colors active:scale-95"
         >

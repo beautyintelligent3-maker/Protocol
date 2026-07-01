@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useEffect, Fragment } from "react";
 import { supabase } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
 
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const {
     data,
@@ -39,6 +41,13 @@ export default function NotificationsPage() {
       queryClient.invalidateQueries({ queryKey: ["notifications"] }); // Update layout bell too
     },
   });
+
+  const handleNotificationClick = (notif: any) => {
+    markReadMutation.mutate(notif.id);
+    if (notif.ticket_id) {
+      router.push(`/dashboard?ticket_id=${notif.ticket_id}`);
+    }
+  };
 
   // Keep page updated in real-time
   useEffect(() => {
@@ -115,8 +124,9 @@ export default function NotificationsPage() {
             allNotifications.map((notif: any) => (
               <div 
                 key={notif.id} 
-                className={`p-4 md:p-5 flex gap-4 transition-colors ${
-                  notif.is_read ? 'opacity-60 bg-white' : 'bg-indigo-50/50'
+                onClick={() => handleNotificationClick(notif)}
+                className={`p-4 md:p-5 flex gap-4 transition-colors cursor-pointer hover:bg-slate-50 ${
+                  notif.is_read ? 'opacity-60 bg-white' : 'bg-indigo-50/50 hover:bg-indigo-50'
                 }`}
               >
                 <div className="flex-1">
@@ -129,7 +139,7 @@ export default function NotificationsPage() {
                 </div>
                 {!notif.is_read && (
                   <button 
-                    onClick={() => markReadMutation.mutate(notif.id)}
+                    onClick={(e) => { e.stopPropagation(); markReadMutation.mutate(notif.id); }}
                     className="text-emerald-500 hover:text-emerald-600 transition-colors self-center p-2 rounded-full hover:bg-emerald-50 active:scale-95"
                     title="Mark as read"
                   >

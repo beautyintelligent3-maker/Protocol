@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 class NotificationOut(BaseModel):
     id: UUID
+    ticket_id: UUID | None = None
     message: str
     is_read: bool
     created_at: datetime

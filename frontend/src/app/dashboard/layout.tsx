@@ -156,9 +156,28 @@ export default function DashboardLayout({
   const [audio] = useState(() => typeof Audio !== "undefined" ? new Audio("/ding.mp3") : null);
   const [toastNotification, setToastNotification] = useState<{ id: string; title: string; message: string; ticketId?: string } | null>(null);
 
-  // Request browser notification permission & setup Web Push
+  // Unlock audio on iOS (requires user interaction)
   useEffect(() => {
-    async function setupPush() {
+    const unlockAudio = () => {
+      if (audio) {
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }).catch(() => {});
+      }
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+  }, [audio]);
+
+  // Request browser notification permission & setup Web Push
+  const setupPush = async () => {
       if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
         try {
           const reg = await navigator.serviceWorker.register('/sw.js');
@@ -215,9 +234,7 @@ export default function DashboardLayout({
           console.error('Push setup failed:', e);
         }
       }
-    }
-    setupPush();
-  }, [currentUser]);
+  };
 
   // Supabase Realtime for Notifications
   useEffect(() => {
@@ -296,7 +313,12 @@ export default function DashboardLayout({
     <div className="relative">
       <button 
         className="p-2 rounded-full hover:bg-slate-100 transition-colors relative"
-        onClick={() => setShowNotifications(!showNotifications)}
+        onClick={() => {
+          setShowNotifications(!showNotifications);
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
+             setupPush();
+          }
+        }}
       >
         <Bell className="w-5 h-5 text-slate-600" />
         {unreadCount > 0 && (

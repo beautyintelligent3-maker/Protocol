@@ -108,7 +108,6 @@ function DashboardContent() {
         t.creator?.staff_id === filterStaffId || t.assignee?.staff_id === filterStaffId
       );
     },
-    refetchInterval: 5000,
   });
 
   const tickets = fetchedTickets
@@ -123,7 +122,6 @@ function DashboardContent() {
     queryKey: ["ticket", ticketId],
     queryFn: () => fetchTicketDetails(ticketId as string),
     enabled: !!ticketId,
-    refetchInterval: 3000,
   });
 
   // Reset mobile tab + due date when ticket changes

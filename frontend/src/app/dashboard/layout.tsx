@@ -137,7 +137,6 @@ export default function DashboardLayout({
   const { data: notifications } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => fetchNotifications(0, 20),
-    refetchInterval: 10000,
     enabled: !!currentUser,
   });
 

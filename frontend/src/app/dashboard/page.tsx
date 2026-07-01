@@ -580,17 +580,18 @@ function DashboardContent() {
             <p className="p-8 text-center text-slate-400 text-sm">No tickets found.</p>
           ) : (
             <div className="divide-y divide-slate-100">
-              {tickets.map((ticket: any) => (
-                <button
+              {tickets.map((ticket: any) => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("ticket_id", ticket.id);
+                if (roomSlug) params.set("room", roomSlug);
+                else if (roomId) params.set("room_id", roomId);
+                const href = `/dashboard?${params.toString()}`;
+                
+                return (
+                <Link
                   key={ticket.id}
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    params.set("ticket_id", ticket.id);
-                    if (roomSlug) params.set("room", roomSlug);
-                    else if (roomId) params.set("room_id", roomId);
-                    router.push(`/dashboard?${params.toString()}`, { scroll: false });
-                  }}
-                  className={`w-full text-left p-3.5 transition-colors hover:bg-slate-50 relative ${
+                  href={href}
+                  className={`w-full text-left p-3.5 transition-colors hover:bg-slate-50 relative block ${
                     ticket.id === ticketId
                       ? "bg-indigo-50/50 shadow-[inset_3px_0_0_0_#6366f1]"
                       : ""
@@ -622,8 +623,9 @@ function DashboardContent() {
                       })}
                     </span>
                   </div>
-                </button>
-              ))}
+                </Link>
+                );
+              })}
             </div>
           )}
         </div>

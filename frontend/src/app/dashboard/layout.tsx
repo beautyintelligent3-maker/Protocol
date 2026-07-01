@@ -28,14 +28,17 @@ const ROLE_LABELS: Record<string, string> = {
 export const getRoleLabel = (role: string) =>
   ROLE_LABELS[role] ?? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-function SidebarNav({ rooms, isLoading, error, currentUser, router }: any) {
+function SidebarNav({ rooms, isLoading, error, currentUser, router, onNavClick }: any) {
   const searchParams = useSearchParams();
   const activeRoom = searchParams?.get('room');
 
   return (
     <nav className="space-y-1 px-3">
       <button
-        onClick={() => router.push('/dashboard')}
+        onClick={() => {
+          router.push('/dashboard');
+          if (onNavClick) onNavClick();
+        }}
         className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-md transition-colors mb-2 ${!activeRoom ? 'text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-slate-100 text-slate-700'}`}
       >
         <LayoutDashboard className={`w-4 h-4 ${!activeRoom ? 'text-indigo-500' : 'text-slate-500'}`} />
@@ -64,6 +67,7 @@ function SidebarNav({ rooms, isLoading, error, currentUser, router }: any) {
           <Link
             key={room.id}
             href={`/dashboard?room=${slug}`}
+            onClick={() => { if (onNavClick) onNavClick(); }}
             className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive ? 'text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-slate-100 text-slate-700'}`}
           >
             {room.type === "branch" ? (

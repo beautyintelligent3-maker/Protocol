@@ -3,7 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchRooms, fetchCurrentUser, fetchNotifications, markNotificationRead } from "@/lib/api";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { LayoutDashboard, Users, User, Loader2, Bell, CheckCircle2, UserPlus, LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -26,6 +27,75 @@ const ROLE_LABELS: Record<string, string> = {
 
 export const getRoleLabel = (role: string) =>
   ROLE_LABELS[role] ?? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+function SidebarNav({ rooms, isLoading, error, currentUser }: any) {
+  const searchParams = useSearchParams();
+  const activeRoom = searchParams?.get('room');
+
+  return (
+    <nav className="space-y-1 px-3">
+      <Link
+        href="/dashboard"
+        className={`flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-md transition-colors mb-2 ${!activeRoom ? 'text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-slate-100 text-slate-700'}`}
+      >
+        <LayoutDashboard className={`w-4 h-4 ${!activeRoom ? 'text-indigo-500' : 'text-slate-500'}`} />
+        All Tickets
+      </Link>
+      
+      {isLoading && (
+        <div className="space-y-2 px-3 py-1">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3 py-1.5 animate-pulse">
+              <Skeleton className="w-4 h-4 rounded-full bg-slate-200" />
+              <Skeleton className="h-4 flex-1 bg-slate-200" />
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {error && (
+        <div className="px-3 text-sm text-red-500">Failed to load rooms</div>
+      )}
+
+      {rooms?.map((room: any) => {
+        const slug = getSlug(room.name);
+        const isActive = activeRoom === slug;
+        return (
+          <Link
+            key={room.id}
+            href={`/dashboard?room=${slug}`}
+            className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive ? 'text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-slate-100 text-slate-700'}`}
+          >
+            {room.type === "branch" ? (
+              <Users className={`w-4 h-4 ${isActive ? 'text-indigo-500' : 'text-blue-500'}`} />
+            ) : room.type === "founder" ? (
+              <User className={`w-4 h-4 ${isActive ? 'text-indigo-500' : 'text-purple-500'}`} />
+            ) : (
+              <Users className={`w-4 h-4 ${isActive ? 'text-indigo-500' : 'text-green-500'}`} />
+            )}
+            {room.name}
+          </Link>
+        );
+      })}
+
+      {(currentUser?.role === "owner" || currentUser?.role === "manager") && (
+        <>
+          <div className="my-4 border-t border-slate-200"></div>
+          <h2 className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+            Administration
+          </h2>
+          <Link
+            href="/dashboard/staff"
+            className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 transition-colors text-indigo-600"
+          >
+            <UserPlus className="w-4 h-4" />
+            Staff Management
+          </Link>
+        </>
+      )}
+    </nav>
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -299,66 +369,10 @@ export default function DashboardLayout({
           </h1>
           <NotificationBell />
         </div>
-
         <div className="flex-1 overflow-y-auto py-4">
-          <nav className="space-y-1 px-3">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-md hover:bg-slate-100 transition-colors mb-2 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50"
-            >
-              <LayoutDashboard className="w-4 h-4 text-indigo-500" />
-              All Tickets
-            </Link>
-            
-            
-            {isLoading && (
-              <div className="space-y-2 px-3 py-1">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1.5 animate-pulse">
-                    <Skeleton className="w-4 h-4 rounded-full bg-slate-200" />
-                    <Skeleton className="h-4 flex-1 bg-slate-200" />
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {error && (
-              <div className="px-3 text-sm text-red-500">Failed to load rooms</div>
-            )}
-
-            {rooms?.map((room: any) => (
-              <Link
-                key={room.id}
-                href={`/dashboard?room=${getSlug(room.name)}`}
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 transition-colors"
-              >
-                {room.type === "branch" ? (
-                  <Users className="w-4 h-4 text-blue-500" />
-                ) : room.type === "founder" ? (
-                  <User className="w-4 h-4 text-purple-500" />
-                ) : (
-                  <Users className="w-4 h-4 text-green-500" />
-                )}
-                {room.name}
-              </Link>
-            ))}
-
-            {(currentUser?.role === "owner" || currentUser?.role === "manager") && (
-              <>
-                <div className="my-4 border-t border-slate-200"></div>
-                <h2 className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                  Administration
-                </h2>
-                <Link
-                  href="/dashboard/staff"
-                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 transition-colors text-indigo-600"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Staff Management
-                </Link>
-              </>
-            )}
-          </nav>
+          <Suspense fallback={<div className="p-4 text-center text-sm text-slate-500">Loading nav...</div>}>
+            <SidebarNav rooms={rooms} isLoading={isLoading} error={error} currentUser={currentUser} />
+          </Suspense>
         </div>
 
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">

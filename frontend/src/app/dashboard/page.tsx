@@ -7,6 +7,7 @@ import {
   fetchRoomMembers,
 } from "@/lib/api";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Suspense, useState, useEffect } from "react";
 import {
   Loader2, Ticket, CheckCircle2, AlertCircle, ArrowLeft,

@@ -270,7 +270,9 @@ function DashboardContent() {
   const goBack = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("ticket_id");
-    router.push(`/dashboard?${params.toString()}`, { scroll: false });
+    const paramStr = params.toString();
+    const newUrl = paramStr ? `/dashboard?${paramStr}` : `/dashboard`;
+    router.push(newUrl, { scroll: false });
   };
 
   const roomName = roomId

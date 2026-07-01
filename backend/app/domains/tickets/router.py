@@ -166,6 +166,7 @@ def create_ticket(
 
             db.add(models.Notification(
                 user_id=owner.id,
+                ticket_id=ticket.id,
                 message=msg
             ))
 
@@ -173,6 +174,7 @@ def create_ticket(
     if ticket.assigned_to_id and ticket.assigned_to_id != current_user.id:
         db.add(models.Notification(
             user_id=ticket.assigned_to_id,
+            ticket_id=ticket.id,
             message=f"You have been assigned to a new ticket: {ticket.title}"
         ))
 
@@ -284,7 +286,9 @@ async def post_message(
 
     for user_id in users_to_notify:
         notification = models.Notification(
-            user_id=user_id, message=f"New response by {current_user.name} on ticket: {ticket.title}"
+            user_id=user_id,
+            ticket_id=ticket.id,
+            message=f"New response by {current_user.name} on ticket: {ticket.title}"
         )
         db.add(notification)
 
@@ -412,6 +416,7 @@ def update_ticket(
                 if assignee.id != current_user.id:
                     db.add(models.Notification(
                         user_id=assignee.id,
+                        ticket_id=ticket.id,
                         message=f"You have been assigned to ticket: {ticket.title}"
                     ))
 
@@ -421,6 +426,7 @@ def update_ticket(
                     if owner.id != current_user.id:
                         db.add(models.Notification(
                             user_id=owner.id,
+                            ticket_id=ticket.id,
                             message=f"Ticket '{ticket.title}' assigned to {assignee.name}"
                         ))
 
@@ -499,6 +505,7 @@ def approve_ticket(
     if ticket.creator_id and ticket.creator_id != current_user.id:
         db.add(models.Notification(
             user_id=ticket.creator_id,
+            ticket_id=ticket.id,
             message=f"Your ticket has been approved: {ticket.title}"
         ))
 
@@ -506,6 +513,7 @@ def approve_ticket(
     if ticket.assigned_to_id and ticket.assigned_to_id != current_user.id:
         db.add(models.Notification(
             user_id=ticket.assigned_to_id,
+            ticket_id=ticket.id,
             message=f"Approved ticket assigned to you: {ticket.title}"
         ))
 

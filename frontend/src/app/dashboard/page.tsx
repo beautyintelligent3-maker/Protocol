@@ -453,17 +453,16 @@ function DashboardContent() {
         <div>
           <PropLabel>Escalate To</PropLabel>
           <Select
-            value="placeholder"
-            onValueChange={(val) => updateTicketMutation.mutate({ add_room_id: val })}
+            value=""
+            onValueChange={(val) => {
+              if (val) updateTicketMutation.mutate({ add_room_id: val });
+            }}
             disabled={updateTicketMutation.isPending || selectedTicket!.status === "resolved"}
           >
             <SelectTrigger className="h-8 w-full border-slate-200 text-xs bg-slate-50 hover:bg-slate-100">
-              <SelectValue placeholder="Add department…" />
+              <SelectValue placeholder="Select room..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="placeholder" disabled className="text-xs">
-                Select department…
-              </SelectItem>
               {allRooms
                 ?.filter((r: any) => !selectedTicket!.rooms?.some((tr: any) => tr.id === r.id))
                 .map((r: any) => (
